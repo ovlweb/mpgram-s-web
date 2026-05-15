@@ -1,51 +1,26 @@
-# MPGram Web
+# MPGram S Web
 
-Lightweight Telegram web client based on MadelineProto.
+Modified lightweight Telegram Web Client based on MadelineProto, that could connect to MyTelegram based servers
 
 ## Setup
 
-- Generate your own API id by creating a Telegram app at [https://my.telegram.org/apps](https://my.telegram.org/apps)
-- Create `api_value.php` from the `api_values.php.example` using the `api_id` and `api_hash` you generated
-- Create `config.php` from the `config.php.example`
+Soon
 
 ## Deployment
 
 ### Docker
 
-You can deploy your own instance quickly with Docker Compose - [see how](https://github.com/shinovon/mpgram-web/blob/main/docker/README.md).
+Soon
 
 ### Manual deployment
 
-- Deny access to sessions folder (`s/` by default, see in `config.php`) and `MadelineProto.log`
-- Install required php extensions: `gd`, `mbstring`, `xml`, `json`, `fileinfo`, `gmp`, `iconv`, `ffi`
-- Download and set [browscap](https://browscap.org/) database in `php.ini` to get better logged in device names
-- Set `session.gc_maxlifetime = 8640000` in `php.ini`
-- Install Composer v2+
-- Install MadelineProto and its dependencies with `composer update`
-- Apply MadelineProto patches:
-```bash
-patch -p0 < patches/InternalDoc.php.patch
-patch -p0 < patches/Files.php.patch
-patch -p0 < patches/UpdateHandler.php.patch
-```
-- Make a background script that restarts php service at least every hour
-- For more details on installing MadelineProto <a href="https://docs.madelineproto.xyz/docs/REQUIREMENTS.html">see here</a>
+Soon
 
 ### Animated stickers conversion (Optional)
 
-- Install `gifski`
-- Download and unpack: https://github.com/ed-asriyan/lottie-converter/releases
-- Make sure www-data user has rights to it
-- Edit `lottie_to_gif.sh`&`lottie_to_png.sh`, add `#!/usr/bin/env bash` as first line
-- Edit `config.php` by setting `CONVERT_TGS_STICKERS` to true, and `LOTTIE_DIR` to path, where lottie_to_gif.sh is contained.
+Soon (will be integrated into single script soon)
 
-Example:
-```php
-define('CONVERT_TGS_STICKERS', true);
-define('LOTTIE_DIR', '/opt/lottie/');
-```
-
-## Tested browsers
+## Tested browsers (as orignal repo, some of them may not support after release)
 
 Fully supported:
 
@@ -59,14 +34,11 @@ Fully supported:
 - Opera Mobile 12
 - All modern browsers (Chrome, Safari, etc)
 
-Partially supported (Auto update doesn't work and/or no auto scroll):
-
+Not supported
 - Internet Explorer 3.0-5.0
 - Opera Mini (All versions)
 - S40 5th Edition or older
 - Internet Explorer Mobile (?)
 - NetFront Browser 4.1 for Samsung
-
-Not supported
 - Internet Explorer 2 and older
 
