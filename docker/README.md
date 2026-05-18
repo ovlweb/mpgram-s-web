@@ -1,4 +1,4 @@
-# Your own mpgram-web in 5 minutes
+# Your own MPGram S Web in 5 minutes
 
 ## Requirements
 
@@ -7,13 +7,27 @@
 
 ## Configuration
 
-Edit `../api_values.php` and `../config.php` as per mpgram-web's [README](https://github.com/shinovon/mpgram-web), then:
+Generate your Telegram `api_id` and `api_hash` at https://my.telegram.org/apps, then run one of:
+
+```
+sh ../setup-client.sh public
+sh ../setup-client.sh mytelegram
+sh ../setup-client.sh dual
+```
+
+Manual setup is still simple:
+
+- Create `../api_values.php` from `../api_values.php.example`
+- For public Telegram MTProto, create `../config.php` from `../config.public.php.example`; this loads `connection.mtproto.php`
+- For MyTelegram/MTG-server mode, create `../config.php` from `../config.mytelegram.php.example`; this loads `connection.mtg-server.php`
+
+Then:
 
 ```
 cp .env.example .env
 ```
 
-See if you need to edit the ports, IP etc.
+For public mode you can also start from `.env.public.example`; for MyTelegram/MTG mode start from `.env.mytelegram.example`. Edit ports, bind IP, and MyTelegram host as needed. Prefer a direct LAN IP, for example `10.0.0.10`, over `host.docker.internal` so MadelineProto does not retry Docker-only DNS names through DoH.
 
 ### HTTP (default)
 
@@ -23,7 +37,21 @@ You are all set!
 docker-compose up --build -d
 ```
 
-Your mpgram will await you on [http://127.0.0.1](http://127.0.0.1).
+Your MPGram S Web instance will await you on the configured HTTP port.
+
+### Dual public/MyTelegram check
+
+To run both connection modes at once:
+
+```
+sh ../setup-client.sh dual
+docker-compose --env-file .env.dual -f docker-compose.dual.yml up --build -d
+```
+
+Defaults:
+
+- Public Telegram MTProto: http://127.0.0.1:8081
+- MyTelegram/MTG-server mode: http://127.0.0.1:8082
 
 ### HTTPS (recommended)
 
@@ -40,5 +68,4 @@ Add a `-sha1` option if you are targeting a retro platform like Symbian S60. **W
 
 Run with `docker-compose` as per above.
 
-Happy mpgram'ming!
-
+Happy MPGram'ing!

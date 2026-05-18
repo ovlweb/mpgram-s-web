@@ -1,0 +1,13 @@
+--- vendor/danog/madelineproto/src/DataCenterConnection.php
++++ vendor/danog/madelineproto/src/DataCenterConnection.php
+@@ -358,6 +358,10 @@
+      */
+     public function signalDisconnect(int $id): void
+     {
++        // PATCHED for mpgram-web: guard against double-disconnect during destruction.
++        if (!isset($this->connections[$id])) {
++            return;
++        }
+         $backup = $this->connections[$id]->backupSession();
+         $list = '';
+         foreach ($backup as $message) {

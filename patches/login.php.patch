@@ -1,0 +1,37 @@
+--- login.php
++++ login.php
+@@ -149,7 +149,10 @@
+ if ($phone !== null) {
+     $p = $phone;
+-    if (empty($p) || strlen($p) < 10 || !is_numeric(str_replace('-','',str_replace('+','', $p)))) {
++    // PATCHED: lowered length threshold from 10 → 5 so Fragment (+888…) and short
++    // test numbers (+42…) reach the server's validator instead of being blocked
++    // client-side as "Wrong number format".
++    if (empty($p) || strlen($p) < 5 || !is_numeric(str_replace('-','',str_replace('+','', $p)))) {
+         header('Location: login.php?wrong=number');
+         die;
+     }
+@@ -222,7 +225,8 @@
+         } elseif (isset($_POST['pass']) || isset($_GET['pass'])) {
+-            $MP = MP::getMadelineAPI($user, true);
++            // PATCHED for mpgram-web: reuse $MP if already created (avoid double-instance flock contention)
++            if (!isset($MP) || !$MP) { $MP = MP::getMadelineAPI($user, true); }
+             try {
+                 $password = $_POST['pass'] ?? $_GET['pass'] ?? null;
+@@ -258,7 +262,10 @@
+             $code = $_POST['code'] ?? $_GET['code'] ?? null;
+             if (!empty($code) && is_numeric($code)) {
+                 try {
+-                    $MP = MP::getMadelineAPI($user, true);
++                    // PATCHED for mpgram-web: reuse the $MP created earlier instead of
++                    // creating a second instance — two API objects on the same session
++                    // at once cause an indefinite flock wait → "Could not connect to MadelineProto".
++                    if (!isset($MP) || !$MP) { $MP = MP::getMadelineAPI($user, true); }
+                     $a = $MP->completePhoneLogin($code);
+@@ -335,7 +342,8 @@
+         } else {
+-            $MP = MP::getMadelineAPI($user, true);
++            // PATCHED for mpgram-web: reuse $MP if already created (avoid double-instance flock contention)
++            if (!isset($MP) || !$MP) { $MP = MP::getMadelineAPI($user, true); }
+             htmlStart();
+         }

@@ -1,0 +1,7 @@
+--- vendor/danog/madelineproto/src/Stream/MTProtoTransport/ObfuscatedStream.php
++++ vendor/danog/madelineproto/src/Stream/MTProtoTransport/ObfuscatedStream.php
+@@ -57,7 +57,7 @@
+         $random = substr_replace($random, $header.substr($random, 56 + \strlen($header)), 56);
+-        $random = substr_replace($random, pack('s', $ctx->getDc()).substr($random, 60 + 2), 60);
++        // PATCHED: tweb (web.k) leaves bytes 60-61 random; including DC ID makes our private server silently drop the connection
+         $reversed = strrev($random);

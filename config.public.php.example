@@ -1,0 +1,67 @@
+<?php
+function mpgram_env_string(string $name, string $default = ''): string
+{
+    $value = getenv($name);
+    return $value === false ? $default : $value;
+}
+
+function mpgram_env_bool(string $name, bool $default = false): bool
+{
+    $value = getenv($name);
+    if ($value === false || $value === '') return $default;
+    return in_array(strtolower((string)$value), ['1', 'true', 'yes', 'on'], true);
+}
+
+// dir where sessions will save
+define('sessionspath', mpgram_env_string('MPGRAM_SESSIONS_PATH', 's/'));
+// transparent stickers
+define('PNG_STICKERS', true);
+// always redirect http to https
+define('FORCE_HTTPS', false);
+// redirect http to https for chrome user-agent
+define('CHROME_HTTPS', false);
+
+// ffmpeg
+define('CONVERT_VOICE_MESSAGES', false);
+define('VOICE_TMP_DIR', sys_get_temp_dir().'/mp/');
+define('FFMPEG_DIR', '');
+
+// login.php
+define('LOGIN_CAPTCHA', true);
+define('INSTANCE_PASSWORD', null);
+
+// Use file/ instead of file.php, see rewrite rule in .htaccess
+define('FILE_REWRITE', false);
+
+// https://github.com/ed-asriyan/lottie-converter (Add "#!/usr/bin/env bash" as first line in its bash scripts!)
+define('CONVERT_TGS_STICKERS', mpgram_env_bool('CONVERT_TGS_STICKERS', false));
+$mpgramLottieDir = rtrim(mpgram_env_string('LOTTIE_DIR', ''), '/');
+define('LOTTIE_DIR', $mpgramLottieDir === '' ? '' : $mpgramLottieDir.'/');
+define('TGS_TMP_DIR', sys_get_temp_dir().'/mp/');
+define('LOTTIE_TO_GIF', mpgram_env_bool('LOTTIE_TO_GIF', true));
+
+// api.php
+define('ENABLE_API', false);
+define('ENABLE_LOGIN_API', false);
+
+// file.php limit
+define('DOWNLOAD_SIZE_LIMIT', 1024 * 1024 * 1024);
+// file.php image resize or conversion limit
+define('IMAGE_SIZE_LIMIT', 30 * 1024 * 1024);
+// msg.php file upload limit
+define('UPLOAD_SIZE_LIMIT', 20 * 1024 * 1024);
+
+// MadelineProto EnablePeerInfoDb setting, setting false will reduce sessions size, but avatars will stop loading
+define('ENABLE_PEER_DB', true);
+
+// Override $_SERVER["SERVER_NAME"] for links
+//define('SERVER_NAME', "example.com");
+
+// --- Telegram transport mode: public Telegram MTProto DCs ---
+// Use this file when the client should connect directly to Telegram's normal MTProto servers.
+$mpgramConnection = strtolower(mpgram_env_string('MPGRAM_CONNECTION', 'public'));
+$mpgramPrivateDefaultHost = '';
+define('PRIVATE_SERVER_HOST', mpgram_env_string('PRIVATE_SERVER_HOST', $mpgramPrivateDefaultHost));
+define('PRIVATE_SERVER_PORT', mpgram_env_string('PRIVATE_SERVER_PORT', '30444'));
+define('PRIVATE_SERVER_USE_WSS', mpgram_env_bool('PRIVATE_SERVER_USE_WSS', false));
+define('MPGRAM_CONNECTION_PROFILE', 'connection.mtproto.php');

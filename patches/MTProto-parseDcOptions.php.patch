@@ -1,0 +1,19 @@
+--- vendor/danog/madelineproto/src/MTProto.php
++++ vendor/danog/madelineproto/src/MTProto.php
+@@ -1581,6 +1581,17 @@
+     private function parseDcOptions(array $dc_options): void
+     {
++        $mode = strtolower((string) (getenv('MPGRAM_CONNECTION') ?: ''));
++        $host = (string) (getenv('PRIVATE_SERVER_HOST') ?: '');
++        if ($host === '' && \defined('PRIVATE_SERVER_HOST')) {
++            $host = (string) \constant('PRIVATE_SERVER_HOST');
++        }
++        if ($host !== '' && ($mode === '' || $mode === 'mytelegram' || $mode === 'mtg')) {
++            // MPGram S Web MyTelegram/MTG profile: do NOT overwrite our pinned dcList
++            // from help.getConfig. Private stacks may advertise alt ports/secrets that
++            // do not speak the selected WebSocket transport.
++            return;
++        }
+         $new = [];
+         foreach ($dc_options as $dc) {
+             if ($dc['static']) {

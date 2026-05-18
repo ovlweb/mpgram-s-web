@@ -7,8 +7,23 @@ define('mp_loaded', true);
 
 require_once("config.php");
 require_once("api_values.php");
+$mpgramConnectionProfile = defined('MPGRAM_CONNECTION_PROFILE') ? MPGRAM_CONNECTION_PROFILE : ((defined('PRIVATE_SERVER_HOST') && PRIVATE_SERVER_HOST !== '') ? 'connection.mtg-server.php' : 'connection.mtproto.php');
+require_once __DIR__.'/'.$mpgramConnectionProfile;
 
 define("WINDOWS", stripos(PHP_OS, 'WIN') === 0);
+
+// MadelineProto's WebRunner self-IPC reaches back via $_SERVER['SERVER_NAME']:$_SERVER['SERVER_PORT'].
+// Inside this docker-compose stack, the PHP-FPM container has no listener on :80 — nginx runs in
+// a sibling container, reachable as "nginx" on the shared docker network. Override so WebRunner
+// connects to the right place.
+if (getenv('DOCKER_INTERNAL_HOST') !== false) {
+    $_SERVER['SERVER_NAME'] = getenv('DOCKER_INTERNAL_HOST');
+}
+// Default for our compose layout — set if not already done above
+if (!isset($_SERVER['SERVER_NAME']) || $_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '') {
+    $_SERVER['SERVER_NAME'] = 'nginx';
+    $_SERVER['SERVER_PORT'] = '80';
+}
 
 if (!defined("api_id") || api_id == 0) {
     throw new Exception('api_id is not set!');
@@ -85,7 +100,7 @@ class MP {
         } else if (static::$chats !== null) {
             $id = static::getId($id);
             $info = null;
-            foreach (static::$users as $p) {
+            foreach (static::$chats as $p) {
                 if ($p['id'] == $id) {
                     $info = $p;
                     break;
@@ -108,6 +123,15 @@ class MP {
         $last = isset($p['last_name']) ? trim($p['last_name']) : null;
         $s = static::removeEmoji(isset($p['first_name']) ? trim($p['first_name']).($full && $last !== null ? ' '.$last : '') : ($last !== null ? $last : 'Deleted Account'));
         return !$full && !$s ? static::removeEmoji("$last") : $s;
+    }
+
+    static function hasPeerPhoto($peer): bool
+    {
+        if (!is_array($peer) || empty($peer['photo']) || !is_array($peer['photo'])) {
+            return false;
+        }
+        $type = $peer['photo']['_'] ?? '';
+        return $type !== '' && !str_ends_with(strtolower($type), 'empty');
     }
 
     static function getSelfName($MP, $full = true)
@@ -208,6 +232,18 @@ class MP {
             case 'chatjoinedbyrequest':
                 $txt = "<a href=\"chat.php?c={$mfid}\" class=\"mn\">".static::dehtml($fn).'</a> '.static::x($lng['action_joinedbyrequest']);
                 break;
+            case 'setchattheme':
+                $txt = static::x($lng['action_setchattheme'] ?? 'changed chat theme');
+                break;
+            case 'setchatwallpaper':
+                $txt = static::x($lng['action_setchatwallpaper'] ?? 'changed chat wallpaper');
+                break;
+            case 'stargift':
+                $txt = static::x($lng['action_stargift'] ?? 'sent a star gift');
+                break;
+            case 'stargiftunique':
+                $txt = static::x($lng['action_stargiftunique'] ?? 'sent a collectible gift');
+                break;
             default:
                 if (isset($lng["action_{$at}"])) {
                     $txt = static::x($lng["action_{$at}"]);
@@ -257,21 +293,9 @@ class MP {
                 }
                 $color = '';
                 if ($uid > 0 && isset(static::$users[$uid])) {
-                    $user = static::$users[$uid];
-                    if (isset($user['color'])) {
-                        static::getPeerColors($MP);
-                        if (isset(static::$colors[$user['color']['color']])) {
-                            $color = 'style="color: #'. static::$colors[$user['color']['color']] . '"';
-                        }
-                    }
-                } elseif ($uid < 0 && isset(static::$chats[$id])) {
-                    $chat = static::$chats[$id];
-                    if (isset($chat['color'])) {
-                        static::getPeerColors($MP);
-                        if (isset(static::$colors[$chat['color']['color']])) {
-                            $color = 'style="color: #'. static::$colors[$chat['color']['color']] . '"';
-                        }
-                    }
+                    $color = static::getPeerColorStyle($MP, static::$users[$uid]['color'] ?? null);
+                } elseif ($uid < 0 && isset(static::$chats[$uid])) {
+                    $color = static::getPeerColorStyle($MP, static::$chats[$uid]['color'] ?? null);
                 }
                 $fwid = null;
                 $fwname = null;
@@ -768,6 +792,14 @@ class MP {
                 $html .= static::wrapRichNestedText($entityText, $entity, $entities);
                 $html .= '</span>';
                 break;
+            case 'messageEntityCustomEmoji':
+                $documentId = $entity['document_id'] ?? null;
+                if ($documentId) {
+                    $html .= '<img class="msg-custom-emoji" src="verifyicon.php?i='.static::dehtml((string)$documentId).'&s=64" alt="">';
+                } else {
+                    $html .= '';
+                }
+                break;
             default:
                 $skipEntity = true;
             }
@@ -963,17 +995,124 @@ class MP {
         $c = $sets->getConnection();
         $c->setTimeout(10);
         $c->setRetry(false);
+
+        // Keep this below Madeline's default, but not so low that public
+        // help.getConfig gets cancelled on a slow/loaded connection.
+        $sets->getRpc()->setRpcDropTimeout(45);
+        $sets->getRpc()->setRpcResendTimeout(15);
+
+        mpgram_apply_connection_settings($sets);
+
         return $sets;
     }
+
+    /**
+     * Convert a raw RSA public key (hex modulus + hex exponent) into a PEM string.
+     * Encoded as PKCS#1 RSAPublicKey: SEQUENCE { INTEGER n, INTEGER e }.
+     * Wraps with -----BEGIN RSA PUBLIC KEY----- so MadelineProto identifies it
+     * as PKCS#1 (the format Telegram clients use), not SubjectPublicKeyInfo.
+     */
+    static function hexRsaToPem(string $modulusHex, string $exponentHex): string
+    {
+        $encodeLen = function (int $len): string {
+            if ($len < 0x80) return chr($len);
+            $bytes = '';
+            while ($len > 0) { $bytes = chr($len & 0xff) . $bytes; $len >>= 8; }
+            return chr(0x80 | strlen($bytes)) . $bytes;
+        };
+        $encodeInt = function (string $hex) use ($encodeLen): string {
+            $raw = hex2bin(strlen($hex) % 2 ? '0' . $hex : $hex);
+            // RSA INTEGERs are unsigned — prefix 0x00 if high bit is set so DER doesn't read negative.
+            if (ord($raw[0]) & 0x80) { $raw = "\x00" . $raw; }
+            return "\x02" . $encodeLen(strlen($raw)) . $raw;
+        };
+        $body = $encodeInt($modulusHex) . $encodeInt($exponentHex);
+        $der  = "\x30" . $encodeLen(strlen($body)) . $body;
+        $b64  = base64_encode($der);
+        $wrapped = trim(chunk_split($b64, 64, "\n"));
+        return "-----BEGIN RSA PUBLIC KEY-----\n$wrapped\n-----END RSA PUBLIC KEY-----";
+    }
+
+    /**
+     * Override the dcList on the MTProto instance so all DCs (1..5, both ipv4 and main/test)
+     * route to the same private server host:port. Must be called AFTER `new API(...)` because
+     * dcList is a public property of the MTProto class (no setter).
+     */
+    static function applyPrivateServerDcList(\danog\MadelineProto\API $MP): void
+    {
+        if (!defined('PRIVATE_SERVER_HOST') || PRIVATE_SERVER_HOST === '') return;
+        $host = PRIVATE_SERVER_HOST;
+        $port = defined('PRIVATE_SERVER_PORT') ? (int)PRIVATE_SERVER_PORT : 30444;
+        $entry = ['ip_address' => $host, 'port' => $port, 'media_only' => false, 'tcpo_only' => false];
+        $dcs = ['main' => ['ipv4' => [], 'ipv6' => []], 'test' => ['ipv4' => [], 'ipv6' => []]];
+        foreach ([1,2,3,4,5] as $id) { $dcs['main']['ipv4'][$id] = $entry; $dcs['test']['ipv4'][$id] = $entry; }
+        try {
+            // API delegates to wrapped MTProto. Try a few common access points.
+            $candidates = [$MP];
+            $ref = new \ReflectionObject($MP);
+            foreach ($ref->getProperties(\ReflectionProperty::IS_PUBLIC | \ReflectionProperty::IS_PROTECTED | \ReflectionProperty::IS_PRIVATE) as $p) {
+                $p->setAccessible(true);
+                try { $v = $p->getValue($MP); } catch (\Throwable $_) { continue; }
+                if (is_object($v)) $candidates[] = $v;
+            }
+            foreach ($candidates as $obj) {
+                if (!is_object($obj)) continue;
+                $cr = new \ReflectionObject($obj);
+                if ($cr->hasProperty('dcList')) {
+                    $p = $cr->getProperty('dcList');
+                    $p->setAccessible(true);
+                    $p->setValue($obj, $dcs);
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('[mpgram] DC override failed: ' . $e->getMessage());
+        }
+    }
+
+    static function flushMadelineSession(\danog\MadelineProto\API $MP): void
+    {
+        try {
+            $ref = new \ReflectionObject($MP);
+            if (!$ref->hasProperty('wrapper')) return;
+            $prop = $ref->getProperty('wrapper');
+            $prop->setAccessible(true);
+            $wrapper = $prop->getValue($MP);
+            if (is_object($wrapper) && method_exists($wrapper, 'serialize')) {
+                $wrapper->serialize();
+            }
+        } catch (\Throwable $e) {
+            error_log('[mpgram] Session flush failed: ' . $e->getMessage());
+        }
+    }
     
+    // PATCHED for mpgram-web: per-request, per-user cache so a single PHP request
+    // doesn't create two API instances against the same session — two MadelineProto
+    // API objects fighting over the session flock = indefinite hang + the "Could not
+    // connect to MadelineProto" error. Many mpgram-web pages call getMadelineAPI()
+    // twice (e.g. login.php, sendsticker.php, sendmsg.php…); caching here means each
+    // page-level fix isn't required.
+    private static array $apiCache = [];
+
     static function getMadelineAPI($user, $settings = false): \danog\MadelineProto\API
     {
         require_once 'vendor/autoload.php';
-        if ($settings) {
-            $MP = new \danog\MadelineProto\API(sessionspath.$user.'.madeline', static::getMadelineSettings());
-        } else {
-            $MP = new \danog\MadelineProto\API(sessionspath.$user.'.madeline');
+        $key = $user.'|'.($settings ? '1' : '0');
+        if (isset(static::$apiCache[$key])) {
+            return static::$apiCache[$key];
         }
+        // If a no-settings instance is already cached for this user, prefer reusing it
+        // over creating a settings-loaded one (both wrap the same session file).
+        if ($settings && isset(static::$apiCache[$user.'|0'])) {
+            return static::$apiCache[$user.'|0'];
+        }
+        if (!$settings && isset(static::$apiCache[$user.'|1'])) {
+            return static::$apiCache[$user.'|1'];
+        }
+        $MP = new \danog\MadelineProto\API(sessionspath.$user.'.madeline', static::getMadelineSettings());
+        if (function_exists('mpgram_connection_uses_private_dc') && mpgram_connection_uses_private_dc()) {
+            static::applyPrivateServerDcList($MP);
+        }
+        static::$apiCache[$key] = $MP;
         return $MP;
     }
 
@@ -1004,7 +1143,7 @@ class MP {
         static::startSession();
         $x = $def;
         if (isset($_GET[$name])) {
-            $x = (int) $_GET[$name];
+            $x = ($_GET[$name] === 'on') ? 1 : (int) $_GET[$name];
         } elseif (isset($_SESSION[$name])) {
             $x = (int) $_SESSION[$name];
         } elseif (isset($_COOKIE[$name])) {
@@ -1123,7 +1262,7 @@ class MP {
     {
         $xlang = $lang = static::getSetting('lang', null, true);
         $lang ??= isset($_SERVER['HTTP_ACCEPT_LANGUAGE']) && str_contains(strtolower($_SERVER['HTTP_ACCEPT_LANGUAGE']), 'ru') ? 'ru' : 'en';
-        include 'locale.php';
+        include_once 'locale.php';
         MPLocale::init();
         if (!MPLocale::load($lang)) {
             MPLocale::load($lang = 'en');
@@ -1212,13 +1351,40 @@ class MP {
     static function getPeerColors($MP): void
     {
         if (isset(static::$colors)) return;
-        $peercolors = $MP->help->getPeerColors();
+        try {
+            $peercolors = $MP->help->getPeerColors();
+        } catch (Throwable) {
+            static::$colors = [];
+            return;
+        }
         $theme = static::getSettingInt('theme');
         static::$colors = [];
         foreach ($peercolors['colors'] as $color) {
             if (!isset($color['colors'])) continue;
-            static::$colors[$color['color_id']] = substr('000000'.dechex($color[($theme==0?'dark_':'').'colors']['colors'][0]), -6);
+            $set = $color[($theme == 0 ? 'dark_' : '').'colors']['colors'] ?? $color['colors']['colors'] ?? null;
+            if (!is_array($set) || !isset($set[0])) continue;
+            static::$colors[$color['color_id']] = substr('000000'.dechex((int)$set[0]), -6);
         }
+    }
+
+    static function getPeerColorStyle($MP, $peerColor): string
+    {
+        if (!is_array($peerColor)) return '';
+        $hex = null;
+        if (isset($peerColor['color'])) {
+            static::getPeerColors($MP);
+            $hex = static::$colors[(int)$peerColor['color']] ?? null;
+        }
+        if ($hex === null) {
+            $theme = static::getSettingInt('theme');
+            $colors = ($theme == 0 ? ($peerColor['dark_colors'] ?? null) : null) ?? ($peerColor['colors'] ?? null);
+            if (is_array($colors) && isset($colors[0])) {
+                $hex = substr('000000'.dechex((int)$colors[0]), -6);
+            } elseif (isset($peerColor['accent_color'])) {
+                $hex = substr('000000'.dechex((int)$peerColor['accent_color']), -6);
+            }
+        }
+        return $hex !== null ? 'style="color: #'.$hex.'"' : '';
     }
     
     // https://stackoverflow.com/questions/61481567/remove-emojis-from-string

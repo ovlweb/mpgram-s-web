@@ -1,2 +1,19 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+/api_values.php export-ignore
+/config.php export-ignore
+/MadelineProto.log export-ignore
+/lastclean export-ignore
+/s export-ignore
+/s-public export-ignore
+/s-mytelegram export-ignore
+/cache export-ignore
+/docker/.env export-ignore
+/docker/.env.dual export-ignore
+/docker/logs export-ignore
+/.DS_Store export-ignore
+__pycache__ export-ignore
+*.pyc export-ignore
+/vendor export-ignore
+/composer.lock export-ignore

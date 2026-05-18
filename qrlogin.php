@@ -33,6 +33,7 @@ $lng = MP::initLocale();
 MP::cookie('theme', $theme, time() + (86400 * 365));
 include 'themes.php';
 Themes::setTheme($theme);
+include 'authui.php';
 
 function htmlStart(): void
 {
@@ -40,40 +41,66 @@ function htmlStart(): void
     header("Content-Type: text/html; charset=utf-8");
     echo '<html><head><title>'.MP::x($lng['login']).'</title>';
     echo Themes::head();
+    echo auth_loading_script();
     echo '</head>';
-    echo Themes::bodyStart();
+    echo Themes::bodyStart('class="auth-page"');
+    echo '<div class="auth-shell"><div class="auth-card auth-card-qr">';
+    echo auth_logo_html('auth-logo-small');
+}
+
+function htmlEnd(): void
+{
+    echo '</div></div>';
+    echo Themes::bodyEnd();
 }
 
 $ipass = $_GET['ipass'] ?? $_POST['ipass'] ?? null;
+$load = isset($_GET['load']);
+$ready = isset($_GET['ready']);
+
+if ($load && !$ready) {
+    htmlStart();
+    $next = 'qrlogin.php?ready=1'.($ipass !== null ? '&ipass='.rawurlencode($ipass) : '');
+    echo '<div class="auth-loading-panel">';
+    echo '<div class="auth-spinner" aria-hidden="true"></div>';
+    echo auth_heading(auth_text('Preparing QR code', 'Готовим QR-код'), auth_text('Telegram QR login will appear in a moment.', 'Вход по QR-коду появится через мгновение.'));
+    echo '<p class="auth-secondary"><a href="'.MP::dehtml($next).'">'.MP::x(auth_text('Continue', 'Продолжить')).'</a></p>';
+    echo '</div>';
+    echo '<script type="text/javascript">setTimeout(function(){location.href="'.MP::dehtml($next).'";},650);</script>';
+    htmlEnd();
+    die;
+}
 
 $MP = null;
 if (defined('INSTANCE_PASSWORD') && INSTANCE_PASSWORD !== null) {
     if ($ipass === null || $ipass != INSTANCE_PASSWORD) {
         htmlStart();
-        echo 'Instance password:<br>';
-        echo '<form action="qrlogin.php"';
+        echo auth_heading('MPGram S', auth_text('Enter the instance password to continue.', 'Введите пароль экземпляра, чтобы продолжить.'));
+        echo '<form class="auth-submit-form" action="qrlogin.php"';
         if ($post) echo ' method="post"';
         echo '>';
-        echo '<input type="password" value="" name="ipass">';
-        echo '<input type="submit">';
+        echo auth_field('Instance password', 'ipass', '', 'password', 'autocomplete="current-password"');
+        echo auth_submit(auth_text('Continue', 'Продолжить'), auth_text('Checking', 'Проверяем'));
         echo '</form>';
         if ($ipass !== null) echo '<b>Wrong password</b>';
+        htmlEnd();
         die;
     }
 }
 if ($user === null || $nouser) {
-    if (empty($confirm) || !isset($_SESSION['captcha']) || strtolower($confirm) !== $_SESSION['captcha']) {
+    // PATCHED for mpgram-web: respect LOGIN_CAPTCHA flag (was: hardcoded captcha gate).
+    if ((!defined('LOGIN_CAPTCHA') || LOGIN_CAPTCHA) && (empty($confirm) || !isset($_SESSION['captcha']) || strtolower($confirm) !== $_SESSION['captcha'])) {
         unset($_SESSION['captcha']);
         htmlStart();
-        echo 'CAPTCHA:<br>';
-        echo '<p><img src="captcha.php?r='.time().'"></p>';
-        echo '<form action="qrlogin.php"'.($post?' method="post"':'').'>';
-        echo '<input type="text" value="" name="confirm">';
+        echo auth_heading('CAPTCHA', auth_text('Enter the characters from the picture.', 'Введите символы с картинки.'));
+        echo '<p class="auth-captcha"><img src="captcha.php?r='.time().'"></p>';
+        echo '<form class="auth-submit-form" action="qrlogin.php"'.($post?' method="post"':'').'>';
+        echo auth_field('CAPTCHA', 'confirm', '', 'text', 'autocomplete="off"');
         if ($ipass !== null)
             echo "<input type=\"hidden\" name=\"ipass\" value=\"".MP::dehtml($ipass)."\">";
-        echo '<input type="submit">';
+        echo auth_submit(auth_text('Continue', 'Продолжить'), auth_text('Checking', 'Проверяем'));
         echo '</form>';
-        echo Themes::bodyEnd();
+        htmlEnd();
         die;
     } else {
         unset($_SESSION['captcha']);
@@ -103,17 +130,17 @@ if (!$qr) {
         } catch (Exception $e) {
             if (str_contains($e->getMessage(), 'PASSWORD_HASH_INVALID')) {
                 htmlStart();
-                echo MP::x($lng['pass_code']).':<br>';
-                echo '<form action="qrlogin.php"'.($post?' method="post"':'').'>';
-                echo '<input type="text" name="pass">';
+                echo auth_heading($lng['pass_code'], auth_text('Enter your Telegram password.', 'Введите пароль Telegram.'));
+                echo '<form class="auth-submit-form" action="qrlogin.php"'.($post?' method="post"':'').'>';
+                echo auth_field($lng['pass_code'], 'pass', '', 'password', 'autocomplete="current-password"');
                 //if ($phone !== null)
                 //    echo '<input type="hidden" name="phone" value="'.$phone.'">';
                 if ($ipass !== null)
                     echo "<input type=\"hidden\" name=\"ipass\" value=\"".MP::dehtml($ipass)."\">";
-                echo '<input type="submit">';
+                echo auth_submit(auth_text('Continue', 'Продолжить'), auth_text('Checking', 'Проверяем'));
                 echo '</form>';
                 echo '<b>'.MP::x($lng['password_hash_invalid']).'</b><br>';
-                echo Themes::bodyEnd();
+                htmlEnd();
                 die;
             } else {
                 echo '<xmp>';
@@ -127,16 +154,16 @@ if (!$qr) {
     if ($MP->getAuthorization() === \danog\MadelineProto\API::WAITING_PASSWORD) {
         // 2fa start
         htmlStart();
-        echo MP::x($lng['pass_code']).':<br>';
-        echo '<form action="qrlogin.php"'.($post?' method="post"':'').'>';
-        echo '<input type="text" name="pass">';
+        echo auth_heading($lng['pass_code'], auth_text('Enter your Telegram password.', 'Введите пароль Telegram.'));
+        echo '<form class="auth-submit-form" action="qrlogin.php"'.($post?' method="post"':'').'>';
+        echo auth_field($lng['pass_code'], 'pass', '', 'password', 'autocomplete="current-password"');
         //if ($phone !== null)
         //    echo '<input type="hidden" name="phone" value="'.$phone.'">';
         if ($ipass !== null)
             echo "<input type=\"hidden\" name=\"ipass\" value=\"".MP::dehtml($ipass)."\">";
-        echo '<input type="submit">';
+        echo auth_submit(auth_text('Continue', 'Продолжить'), auth_text('Checking', 'Проверяем'));
         echo '</form>';
-        echo Themes::bodyEnd();
+        htmlEnd();
         die;
     }
     if (isset($_SESSION['qr_token'])) {
@@ -150,7 +177,9 @@ if (!$qr) {
 $qrtext = $qr->{'link'};
 $_SESSION['qr_token'] = base64_encode($qrtext);
 htmlStart();
-echo $qrtext;
-echo '<br><img src="qrcode.php"><br>';
-echo '<a href="qrlogin.php?check'.($ipass !== null ? '&ipass='.MP::dehtml($ipass) : '').'">Check</a>';
-echo Themes::bodyEnd();
+echo '<div class="auth-qr-box"><div class="auth-qr-frame"><img src="qrcode.php" alt="QR code"><span class="auth-qr-logo">'.auth_logo_html('auth-logo-tiny').'</span></div></div>';
+echo auth_heading(auth_text('Log in to Telegram by QR Code', 'Вход в Telegram по QR-коду'), auth_text('Open Telegram on your phone, go to Settings > Devices, and scan this code.', 'Откройте Telegram на телефоне, перейдите в Настройки > Устройства и отсканируйте код.'));
+echo '<ol class="auth-qr-steps"><li>'.MP::x(auth_text('Open Telegram on your phone', 'Откройте Telegram на телефоне')).'</li><li>'.MP::x(auth_text('Go to', 'Перейдите в')).' <b>'.MP::x(auth_text('Settings', 'Настройки')).'</b> &gt; <b>'.MP::x(auth_text('Devices', 'Устройства')).'</b></li><li>'.MP::x(auth_text('Point your phone at this screen', 'Наведите телефон на этот экран')).'</li></ol>';
+echo '<p><a class="btn auth-link-btn auth-delay-link" href="login.php">'.MP::x(auth_text('LOG IN BY PHONE NUMBER', 'ВОЙТИ ПО НОМЕРУ ТЕЛЕФОНА')).'</a></p>';
+echo '<p class="auth-secondary"><a class="auth-delay-link" href="qrlogin.php?check'.($ipass !== null ? '&ipass='.MP::dehtml($ipass) : '').'">'.MP::x(auth_text('Check login', 'Проверить вход')).'</a></p>';
+htmlEnd();

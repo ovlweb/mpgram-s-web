@@ -1,6 +1,19 @@
 <?php
+function mpgram_env_string(string $name, string $default = ''): string
+{
+    $value = getenv($name);
+    return $value === false ? $default : $value;
+}
+
+function mpgram_env_bool(string $name, bool $default = false): bool
+{
+    $value = getenv($name);
+    if ($value === false || $value === '') return $default;
+    return in_array(strtolower((string)$value), ['1', 'true', 'yes', 'on'], true);
+}
+
 // dir where sessions will save
-define('sessionspath', 's/');
+define('sessionspath', mpgram_env_string('MPGRAM_SESSIONS_PATH', 's/'));
 // transparent stickers
 define('PNG_STICKERS', true);
 // always redirect http to https
@@ -21,10 +34,11 @@ define('INSTANCE_PASSWORD', null);
 define('FILE_REWRITE', false);
 
 // https://github.com/ed-asriyan/lottie-converter (Add "#!/usr/bin/env bash" as first line in its bash scripts!)
-define('CONVERT_TGS_STICKERS', false);
-define('LOTTIE_DIR', '');
+define('CONVERT_TGS_STICKERS', mpgram_env_bool('CONVERT_TGS_STICKERS', false));
+$mpgramLottieDir = rtrim(mpgram_env_string('LOTTIE_DIR', ''), '/');
+define('LOTTIE_DIR', $mpgramLottieDir === '' ? '' : $mpgramLottieDir.'/');
 define('TGS_TMP_DIR', sys_get_temp_dir().'/mp/');
-define('LOTTIE_TO_GIF', true);
+define('LOTTIE_TO_GIF', mpgram_env_bool('LOTTIE_TO_GIF', true));
 
 // api.php
 define('ENABLE_API', false);
@@ -42,3 +56,14 @@ define('ENABLE_PEER_DB', true);
 
 // Override $_SERVER["SERVER_NAME"] for links
 //define('SERVER_NAME', "example.com");
+
+// --- Telegram transport mode ---
+// MPGRAM_CONNECTION=public     -> public Telegram MTProto DCs.
+// MPGRAM_CONNECTION=mytelegram -> MyTelegram/MTG-server-compatible WebSocket endpoint.
+// PRIVATE_SERVER_HOST='' always forces public Telegram servers.
+$mpgramConnection = strtolower(mpgram_env_string('MPGRAM_CONNECTION', 'public'));
+$mpgramPrivateDefaultHost = $mpgramConnection === 'public' ? '' : '127.0.0.1';
+define('PRIVATE_SERVER_HOST', mpgram_env_string('PRIVATE_SERVER_HOST', $mpgramPrivateDefaultHost));
+define('PRIVATE_SERVER_PORT', mpgram_env_string('PRIVATE_SERVER_PORT', '30444'));
+define('PRIVATE_SERVER_USE_WSS', mpgram_env_bool('PRIVATE_SERVER_USE_WSS', false));
+define('MPGRAM_CONNECTION_PROFILE', $mpgramConnection === 'mytelegram' ? 'connection.mtg-server.php' : 'connection.mtproto.php');

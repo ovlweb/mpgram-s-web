@@ -1,0 +1,33 @@
+--- ava.php
++++ ava.php
+@@ -49,9 +49,15 @@
+         if ($default) {
+             $img = imagecreatefromstring(file_get_contents((int)$cid < 0 ?'img/gr.png' : 'img/us.png'));
+         } else {
+-            $payload = new Amp\ByteStream\Payload($MP->downloadToReturnedStream($di));
+-            $img = imagecreatefromstring($payload->buffer());
+-            $payload->close();
++            // PATCHED for mpgram-web private server: fall back to default avatar
++            // if the server doesn't implement the photo-download method.
++            try {
++                $payload = new Amp\ByteStream\Payload($MP->downloadToReturnedStream($di));
++                $img = imagecreatefromstring($payload->buffer());
++                $payload->close();
++            } catch (Exception $e) {
++                $img = imagecreatefromstring(file_get_contents((int)$cid < 0 ? 'img/gr.png' : 'img/us.png'));
++            }
+         }
+@@ -101,7 +107,14 @@
+         header('Cache-Control: private, max-age=2592000');
+     } else {
+-        $MP->downloadToBrowser($di);
++        // PATCHED for mpgram-web private server: fall back to default avatar
++        // if the server can't serve the picture.
++        try {
++            $MP->downloadToBrowser($di);
++        } catch (Exception $e) {
++            header('Content-Type: image/png');
++            header('Cache-Control: private, max-age=2592000');
++            echo file_get_contents((int)$cid < 0 ? 'img/gr.png' : 'img/us.png');
++        }
+     }

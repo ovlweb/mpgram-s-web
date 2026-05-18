@@ -1,0 +1,15 @@
+--- vendor/danog/ipc/lib/IpcServer.php
++++ vendor/danog/ipc/lib/IpcServer.php
+@@ -237,7 +237,12 @@
+         if ($this->server) {
+             $server = $this->server;
+             $this->server = null;
+             \fclose($server);
+-            @\unlink($this->uri);
++            // PATCHED: file_exists check — MadelineProto's exceptionErrorHandler bypasses
++            // the `@` suppression in PHP 8+, so a missing IPC socket crashes shutdown.
++            if (\is_string($this->uri) && \file_exists($this->uri)) {
++                try { \unlink($this->uri); } catch (\Throwable $_) {}
++            }
+         }
+     }

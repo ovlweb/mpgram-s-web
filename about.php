@@ -15,11 +15,16 @@ echo MP::x('<html><head><title>'.$lng['about'].'</title>');
 echo Themes::head();
 echo '</head>';
 echo Themes::bodyStart();
-echo MP::x('<div><a href="login.php">'.$lng['back'].'</a></div>');
+echo Themes::iframeDetectScript();
+echo Themes::appbar($lng['about'] ?? 'About', 'chats.php');
 
+require_once 'vendor/autoload.php';
 ?>
-<h1>MPGram Web</h1>
-<p>MPGram Web (aka MIDletPascalGram Web) is lightweight telegram web client based on MadelineProto library, for devices with internet access and basic HTML & CSS support</p>
+<div class="container" style="padding: 16px 12px">
+<h1>MPGram S Web</h1>
+<p>MPGram S Web / MPGram Web Client (aka MIDletPascalGram Web) is lightweight telegram web client based on MadelineProto library, for devices with slow internet access and basic HTML & CSS support</p>
+
+<p>Currently running on MadelineProto <?= \danog\MadelineProto\API::RELEASE ?> / PHP <?= phpversion() ?></p>
 <p>Links:<br>
 <a href="https://github.com/shinovon/mpgram-web">GitHub</a><br>
 <?php
@@ -46,8 +51,6 @@ if (MP::getUser()) {
 <p>Donate:<br>
 <a href="https://boosty.to/nnproject/donate">boosty.to/nnproject/donate</a><br>
 </p>
+</div>
 <?php
-require_once 'vendor/autoload.php';
-echo '<br>Running on MadelineProto ' . \danog\MadelineProto\API::RELEASE;
-echo ' PHP ' . phpversion();
 echo Themes::bodyEnd();

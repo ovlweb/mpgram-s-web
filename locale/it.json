@@ -24,7 +24,7 @@
 	"set_chat_autoupdate": "Aggiornamenti automatici chat",
 	"set_chat_autoupdate_interval": "Frequenza di aggiornamento (secondi)",
 	"set_language": "Lingua",
-	"about": "Informazioni su MPGram",
+	"about": "Informazioni su MPGram S Web",
 	"set_theme": "Tema",
 	"set_theme_dark": "Scuro",
 	"set_theme_light": "Chiaro",
@@ -79,10 +79,20 @@
 	"owner": "proprietario",
 	"admin": "amministratore",
 	"members": [
-		[ "=", 1, "$ membro", "$ membri" ]
+		[
+			"=",
+			1,
+			"$ membro",
+			"$ membri"
+		]
 	],
 	"subscribers": [
-		[ "=", 1, "$ subscriber", "$ subscribers" ]
+		[
+			"=",
+			1,
+			"$ subscriber",
+			"$ subscribers"
+		]
 	],
 	"forward_save": "Salva nei preferiti",
 	"set_chat_texttop": "Campo di testo in basso",
@@ -110,7 +120,12 @@
 	"last_week": "entro una settimana",
 	"last_month": "entro un mese",
 	"minutes_ago": [
-		[ "=", 1, "$ minuto fa", "$ minuti fa" ]
+		[
+			"=",
+			1,
+			"$ minuto fa",
+			"$ minuti fa"
+		]
 	],
 	"install_stickerset": "Installa pacchetto di sticker",
 	"set_chat_status": "Stato chat",
@@ -124,10 +139,83 @@
 	"set_chat_photos_size": "Dimensione anteprima immagini",
 	"set_bg_size": "Dimensione immagine di sfondo",
 	"votes": [
-		[ "=", 1, "$ voto", "$ voti" ]
+		[
+			"=",
+			1,
+			"$ voto",
+			"$ voti"
+		]
 	],
 	"anonymous_poll": "Sondaggio anonimo",
 	"poll": "Sondaggio",
 	"closed_poll": "Risultati sondaggio",
-	"no_votes": "Nessun voto"
+	"no_votes": "Nessun voto",
+	"dont_register_warning": "Non registrare un account da questo client web; usa invece Telegram",
+	"signup_title": "Crea il tuo account",
+	"signup_first_name": "Nome",
+	"signup_last_name": "Cognome",
+	"signup_optional": "facoltativo",
+	"signup_create": "Crea account",
+	"signup_error": "Impossibile creare account, riprova",
+	"signup_firstname_invalid": "Nome non valido",
+	"signup_lastname_invalid": "Cognome non valido",
+	"save": "Save",
+	"set_overview_hint": "Choose a category to configure.",
+	"set_cat_overview": "Overview",
+	"set_cat_account": "Account",
+	"set_cat_chat": "Chat settings",
+	"set_cat_privacy": "Privacy and Security",
+	"set_cat_folders": "Chat folders",
+	"set_cat_business": "Business",
+	"set_cat_language": "Language",
+	"set_profile": "Profile",
+	"set_profile_updated": "Profile updated",
+	"set_username_hint": "Leave blank to remove. 5–32 chars, a–z, 0–9, underscores.",
+	"set_username_updated": "Username updated",
+	"set_username_cleared": "Username removed",
+	"set_username_hidden": "Username hidden",
+	"set_username_shown": "Username made visible",
+	"set_username_hide_btn": "Hide",
+	"set_username_show_btn": "Show",
+	"set_collectible_usernames": "Additional usernames (Fragment)",
+	"set_login_required": "Login required.",
+	"set_unavailable": "Not available on this server",
+	"set_priv_last_seen": "Last seen & online",
+	"set_priv_everyone": "Everybody",
+	"set_priv_contacts": "My contacts",
+	"set_priv_nobody": "Nobody",
+	"set_priv_sessions": "Active sessions",
+	"set_priv_current": "current",
+	"set_priv_terminate": "Terminate",
+	"set_privacy_updated": "Privacy updated",
+	"set_session_terminated": "Session terminated",
+	"set_folders_empty": "You have no chat folders yet.",
+	"set_folder_unnamed": "Unnamed",
+	"set_folder_peers": "peers",
+	"set_folder_excluded": "excluded",
+	"set_folders_edit_hint": "Folder editing UI not implemented yet.",
+	"set_business_hours": "Opening hours",
+	"set_business_hours_hint": "One line per day. Format: Mon 09:00-18:00",
+	"set_business_hours_saved": "Business hours saved",
+	"set_business_tz": "Timezone ID (e.g. Europe/Moscow)",
+	"set_business_location": "Location",
+	"set_business_address": "Address",
+	"set_business_location_saved": "Business location saved",
+	"set_business_location_clear": "Leave blank to clear.",
+	"select_chat": "Seleziona una chat per iniziare",
+	"day_mon": "Lunedì",
+	"day_tue": "Martedì",
+	"day_wed": "Mercoledì",
+	"day_thu": "Giovedì",
+	"day_fri": "Venerdì",
+	"day_sat": "Sabato",
+	"day_sun": "Domenica",
+	"set_profile_photo": "Profile photo",
+	"set_upload_photo": "Upload new",
+	"set_remove_photo": "Remove",
+	"set_photo_uploaded": "Profile photo updated",
+	"set_photo_removed": "Profile photo removed",
+	"set_no_photo_to_remove": "No photo to remove",
+	"set_quick_actions": "Quick actions",
+	"set_common_chats": "Common chats"
 }

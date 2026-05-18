@@ -1,5 +1,3 @@
-version: '2.4'
-
 services:
     nginx:
         build:
@@ -25,6 +23,16 @@ services:
             context: mpgram_web
             args:
                 UID: ${UID}
+        environment:
+            MPGRAM_CONNECTION: ${MPGRAM_CONNECTION:-public}
+            MPGRAM_SESSIONS_PATH: ${MPGRAM_SESSIONS_PATH:-s/}
+            PRIVATE_SERVER_HOST: ${PRIVATE_SERVER_HOST:-}
+            PRIVATE_SERVER_PORT: ${PRIVATE_SERVER_PORT:-30444}
+            PRIVATE_SERVER_USE_WSS: ${PRIVATE_SERVER_USE_WSS:-false}
+            DOCKER_INTERNAL_HOST: ${DOCKER_INTERNAL_HOST:-nginx}
+            CONVERT_TGS_STICKERS: ${CONVERT_TGS_STICKERS:-true}
+            LOTTIE_DIR: ${LOTTIE_DIR:-/opt/lottie/bin}
+            LOTTIE_TO_GIF: ${LOTTIE_TO_GIF:-true}
         volumes:
             - ./logs/nginx:/var/log/nginx
             - ./logs/php:/var/log/php
@@ -42,7 +50,7 @@ services:
       volumes_from:
         - app
       working_dir: /var/www/mpgram
-      command: sh -c "composer install && patch -p0 -N < patches/InternalDoc.php.patch && patch -p0 -N < patches/Files.php.patch && patch -p0 -N < patches/UpdateHandler.php.patch"
+      command: sh -c "composer install && patch -p0 -N < patches/InternalDoc.php.patch && patch -p0 -N < patches/Files.php.patch && patch -p0 -N < patches/UpdateHandler.php.patch && patch -p0 -N < patches/MTProto.php.patch && patch -p0 -N < patches/ObfuscatedStream.php.patch && patch -p0 -N < patches/IpcServer.php.patch && patch -p0 -N < patches/API.php.patch && patch -p0 -N < patches/DataCenter.php.patch && patch -p0 -N < patches/MTProto-fullGetSelf.php.patch && patch -p0 -N < patches/MTProto-parseDcOptions.php.patch && patch -p0 -N < patches/DataCenterConnection.php.patch"
 
 networks:
     mpgram:
@@ -51,4 +59,3 @@ networks:
             driver: default
             config:
                 - subnet: 10.100.0.0/24
-

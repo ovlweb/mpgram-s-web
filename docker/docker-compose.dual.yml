@@ -1,0 +1,90 @@
+services:
+    public-nginx:
+        build:
+            context: nginx
+            args:
+                UID: ${UID:-1000}
+                PROTO: http
+        depends_on:
+            - public-app
+        volumes_from:
+            - public-app
+        ports:
+            - '${INTERFACE:-0.0.0.0}:${PUBLIC_PORT_HTTP:-8081}:80'
+        networks:
+            - mpgram-public
+        restart: unless-stopped
+
+    public-app:
+        build:
+            context: mpgram_web
+            args:
+                UID: ${UID:-1000}
+        environment:
+            MPGRAM_CONNECTION: public
+            MPGRAM_SESSIONS_PATH: s-public/
+            PRIVATE_SERVER_HOST: ''
+            PRIVATE_SERVER_PORT: '30444'
+            PRIVATE_SERVER_USE_WSS: 'false'
+            DOCKER_INTERNAL_HOST: public-nginx
+            CONVERT_TGS_STICKERS: 'true'
+            LOTTIE_DIR: /opt/lottie/bin
+            LOTTIE_TO_GIF: 'true'
+        volumes:
+            - ./logs/public-nginx:/var/log/nginx
+            - ./logs/public-php:/var/log/php
+            - /etc/localtime:/etc/localtime/:ro
+            - ../:/var/www/mpgram:rw
+        networks:
+            mpgram-public:
+                aliases:
+                    - app
+        restart: unless-stopped
+
+    mytelegram-nginx:
+        build:
+            context: nginx
+            args:
+                UID: ${UID:-1000}
+                PROTO: http
+        depends_on:
+            - mytelegram-app
+        volumes_from:
+            - mytelegram-app
+        ports:
+            - '${INTERFACE:-0.0.0.0}:${MYTELEGRAM_PORT_HTTP:-8082}:80'
+        networks:
+            - mpgram-mytelegram
+        restart: unless-stopped
+
+    mytelegram-app:
+        build:
+            context: mpgram_web
+            args:
+                UID: ${UID:-1000}
+        environment:
+            MPGRAM_CONNECTION: mytelegram
+            MPGRAM_SESSIONS_PATH: s-mytelegram/
+            PRIVATE_SERVER_HOST: ${MYTELEGRAM_HOST:-10.0.0.10}
+            PRIVATE_SERVER_PORT: ${MYTELEGRAM_PORT:-30444}
+            PRIVATE_SERVER_USE_WSS: ${MYTELEGRAM_USE_WSS:-false}
+            DOCKER_INTERNAL_HOST: mytelegram-nginx
+            CONVERT_TGS_STICKERS: 'true'
+            LOTTIE_DIR: /opt/lottie/bin
+            LOTTIE_TO_GIF: 'true'
+        volumes:
+            - ./logs/mytelegram-nginx:/var/log/nginx
+            - ./logs/mytelegram-php:/var/log/php
+            - /etc/localtime:/etc/localtime/:ro
+            - ../:/var/www/mpgram:rw
+        networks:
+            mpgram-mytelegram:
+                aliases:
+                    - app
+        restart: unless-stopped
+
+networks:
+    mpgram-public:
+        driver: bridge
+    mpgram-mytelegram:
+        driver: bridge

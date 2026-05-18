@@ -33,17 +33,18 @@ echo Themes::head();
 echo '</head>';
 echo Themes::bodyStart();
 
-echo '<div><a href="login.php">'.MP::x($lng['back']).'</a></div>';
+echo Themes::appbar($lng['search'], 'chats.php');
 
-echo '<form action="chat'.($c ? '' : 'select').'.php">';
-echo '<p><input type="text" name="q" id="q"><br>';
+echo '<div class="card">';
+echo '<form action="chat'.($c ? '' : 'select').'.php" class="search-form">';
+echo '<input type="search" name="q" id="q" placeholder="'.MP::x($lng['search']).'…" autofocus>';
 if ($c) {
     echo '<input type="hidden" name="c" value="'.$c.'">';
 } else {
-    echo '<input type="checkbox" name="g" id="g">';
-    echo '<label for="g">'.MP::x(MP::x($lng['global_search'])).'</label>';
+    echo '<label for="g"><input type="checkbox" name="g" id="g"> '.MP::x(MP::x($lng['global_search'])).'</label>';
 }
-echo '</p><input type="submit">';
+echo '<div><input type="submit" class="btn btn-primary" value="'.MP::x($lng['search']).'"></div>';
 echo '</form>';
+echo '</div>';
 
 echo Themes::bodyEnd();

@@ -22,6 +22,31 @@ function resize($image, $w, $h) {
     imagecopyresampled($temp, $image, 0, 0, 0, 0, $w, $h, $oldw, $oldh);
     return $temp;
 }
+
+function run_lottie_converter(string $scriptName, string $inpath, string $outpath, int $size): string {
+    if (!defined('LOTTIE_DIR') || LOTTIE_DIR === '') {
+        throw new Exception('LOTTIE_DIR is not configured');
+    }
+    $script = rtrim(LOTTIE_DIR, '/').'/'.$scriptName;
+    if (!is_file($script)) {
+        throw new Exception($scriptName.' was not found in LOTTIE_DIR');
+    }
+    $cmd = 'bash '.escapeshellarg($script)
+        .' --output '.escapeshellarg($outpath)
+        .' --width '.((int)$size)
+        .' --height '.((int)$size)
+        .' --quality 70 --threads 1 --fps 10 '
+        .escapeshellarg($inpath);
+    $lines = [];
+    $code = 0;
+    exec($cmd.(WINDOWS ? '' : ' 2>&1'), $lines, $code);
+    $out = implode("\n", $lines);
+    if ($code !== 0) {
+        throw new Exception($scriptName.' failed: '.$out);
+    }
+    return $out;
+}
+
 try {
     include 'mp.php';
     $user = MP::getUser();
@@ -91,7 +116,7 @@ try {
         $p = substr($p, 1);
         if (str_starts_with($p, 'tgs')) {
             if (!defined('CONVERT_TGS_STICKERS') || !CONVERT_TGS_STICKERS) {
-                http_response_code(403);
+                http_response_code(204);
                 die;
             }
             if (($di['MessageMedia']['document']['size'] ?? 0) >= 512*1024) {
@@ -99,7 +124,7 @@ try {
                 die;
             }
             if ($size >= 240) $size = 240;
-            if (!file_exists(TGS_TMP_DIR)) mkdir(TGS_TMP_DIR);
+            if (!file_exists(TGS_TMP_DIR)) mkdir(TGS_TMP_DIR, 0775, true);
             else {
                 try {
                     $scan = scandir(TGS_TMP_DIR);
@@ -125,10 +150,10 @@ try {
                 }
                 $res = null;
                 if ($gif) {
-                    $res = shell_exec('bash `'.LOTTIE_DIR.'lottie_to_gif.sh --output "'.$outpath.'" --width '.$size.' --height '.$size.' --quality 70 --threads 1 --fps 10 "'.$inpath.'"'.(WINDOWS?'':' 2>&1').'`') ?? '';
+                    $res = run_lottie_converter('lottie_to_gif.sh', $inpath, $outpath, $size);
                 } else {
                     $outpath = $prefix;
-                    $res = shell_exec('bash `'.LOTTIE_DIR.'lottie_to_png.sh --output "'.$outpath.'" --width '.$size.' --height '.$size.' --quality 70 --threads 1 --fps 10 "'.$inpath.'"'.(WINDOWS?'':' 2>&1').'`') ?? '';
+                    $res = run_lottie_converter('lottie_to_png.sh', $inpath, $outpath, $size);
                     if (file_exists($outpath.'/')) {
                         if (file_exists($outpath.'/000.png')) {
                             rename($outpath.'/000.png', $outpath.'.png');

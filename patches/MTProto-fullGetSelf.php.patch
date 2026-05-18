@@ -1,0 +1,17 @@
+--- vendor/danog/madelineproto/src/MTProto.php
++++ vendor/danog/madelineproto/src/MTProto.php
+@@ -1218,8 +1218,12 @@
+             $this->loginState->wakeup();
+
+-            // Connect to all DCs, start internal loops
+-            if ($this->fullGetSelf()) {
++            // PATCHED for mpgram-web private server: skip fullGetSelf when there's no
++            // saved authorization (our Kestrel backend silently drops users.getUsers from
++            // unauthenticated sessions instead of returning an error → 30s timeout). With
++            // this guard, login.php can proceed to auth.sendCode immediately.
++            $hasAuth = !empty($this->authorization['user']);
++            // Connect to all DCs, start internal loops
++            if ($hasAuth && $this->fullGetSelf()) {
+                 $this->setupLogger();
+                 $this->startLoops();
+                 $this->getCdnConfig();

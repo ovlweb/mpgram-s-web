@@ -1,0 +1,5 @@
+<?php
+// Public Telegram MTProto mode still requires a Telegram app.
+// Create one at https://my.telegram.org/apps and paste the values here.
+define('api_id', 0);
+define('api_hash', '');

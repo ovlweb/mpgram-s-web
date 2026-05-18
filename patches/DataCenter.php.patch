@@ -1,0 +1,18 @@
+--- vendor/danog/madelineproto/src/DataCenter.php
++++ vendor/danog/madelineproto/src/DataCenter.php
+@@ -322,7 +322,15 @@
+                     }
+                     $port = $this->API->dcList[$test][$ipv6][$dc_number]['port'];
+-                    foreach (array_unique([$port, 443, 80, 88, 5222]) as $port) {
++                    $mpgramMode = strtolower((string) (getenv('MPGRAM_CONNECTION') ?: ''));
++                    $mpgramPrivateHost = (string) (getenv('PRIVATE_SERVER_HOST') ?: '');
++                    if ($mpgramPrivateHost === '' && \defined('PRIVATE_SERVER_HOST')) {
++                        $mpgramPrivateHost = (string) \constant('PRIVATE_SERVER_HOST');
++                    }
++                    $ports = ($mpgramPrivateHost !== '' && ($mpgramMode === '' || $mpgramMode === 'mytelegram' || $mpgramMode === 'mtg'))
++                        ? [$port]
++                        : array_unique([$port, 443, 80, 88, 5222]);
++                    foreach ($ports as $port) {
+                         $stream = end($combo)[0];
+                         if ($stream === HttpsStream::class) {
+                             $subdomain = $settings->getSslSubdomains()[abs($dc_number)] ?? null;

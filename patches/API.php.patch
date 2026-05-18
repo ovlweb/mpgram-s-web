@@ -1,0 +1,11 @@
+--- vendor/danog/madelineproto/src/API.php
++++ vendor/danog/madelineproto/src/API.php
+@@ -302,7 +302,7 @@
+         } elseif ($settings instanceof Settings) {
+             $forceFull = $forceFull || $settings->getIpc()->getSlow();
+         }
+-        $forceFull = $forceFull || isset($_GET['MadelineSelfRestart']) || Magic::$altervista;
++        $forceFull = true; // PATCHED for mpgram-web: no IPC spawn (multi-container docker has no localhost HTTP listener)
+
+         try {
+             [$unserialized, $this->unlock] = async(

@@ -1,0 +1,50 @@
+--- vendor/danog/madelineproto/src/Ipc/AbstractServer.php
++++ vendor/danog/madelineproto/src/Ipc/AbstractServer.php
+@@ -96,16 +96,29 @@
+     public function setIpcPath(SessionPaths $session): void
+     {
+         self::$shutdownDeferred ??= new DeferredFuture;
+-        $this->server = new IpcServer($session->getIpcPath());
+-        $this->callback = new ServerCallback($this->API);
+-        $this->callback->setIpcPath($session);
++        // PATCHED for mpgram-web: in forceFull mode (no daemon) the IPC unix socket
++        // can fail to bind (docker bind-mount filesystem doesn't always support it).
++        // Swallow the failure — the IPC server is not needed for per-request HTTP flow.
++        try {
++            $this->server = new IpcServer($session->getIpcPath());
++            $this->callback = new ServerCallback($this->API);
++            $this->callback->setIpcPath($session);
++        } catch (\Throwable $e) {
++            // IPC unavailable — running in stateless-request mode only.
++        }
+     }
+     #[\Override]
+     public function start(): bool
+     {
+-        return $this instanceof ServerCallback ? parent::start() : $this->callback->start() && parent::start();
++        // PATCHED for mpgram-web: if setIpcPath() failed silently, $this->callback is unset.
++        if ($this instanceof ServerCallback) {
++            return isset($this->server) ? parent::start() : false;
++        }
++        if (!isset($this->callback) || !isset($this->server)) {
++            return false;
++        }
++        return $this->callback->start() && parent::start();
+     }
+@@ -189,9 +199,14 @@
+     #[\Override]
+     final public function stop(): bool
+     {
+-        $this->server->close();
+-        if (!$this instanceof ServerCallback) {
+-            $this->callback->server->close();
+-        }
++        // PATCHED for mpgram-web: guard against uninitialized $server/$callback when
++        // setIpcPath() failed (e.g. unix socket couldn't bind in the docker mount).
++        if (isset($this->server)) {
++            try { $this->server->close(); } catch (\Throwable $_) {}
++        }
++        if (!$this instanceof ServerCallback && isset($this->callback) && isset($this->callback->server)) {
++            try { $this->callback->server->close(); } catch (\Throwable $_) {}
++        }
+         if (self::$shutdownDeferred) {

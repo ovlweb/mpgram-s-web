@@ -34,6 +34,10 @@ class MPLocale {
     "set_theme_dark" => "",
     "set_theme_light" => "",
     "set_chat" => "",
+    "set_chat_hint" => "",
+    "set_chat_behavior" => "",
+    "set_chat_media" => "",
+    "set_chat_limits" => "",
     "action_channelcreate" => "",
     "action_chateditphoto" => "",
     "action_chatedittitle" => "",
@@ -74,6 +78,10 @@ class MPLocale {
     "action_joinedbyrequest" => "",
     "action_historyclear" => "",
     "action_chatcreate" => "",
+    "action_setchattheme" => "",
+    "action_setchatwallpaper" => "",
+    "action_stargift" => "",
+    "action_stargiftunique" => "",
     "compactchats" => ""
     );
     

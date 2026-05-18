@@ -1,0 +1,6 @@
+<?php
+// MyTelegram/MTG-server mode uses the same client API fields.
+// For a Telegram-compatible public client, create an app at https://my.telegram.org/apps.
+// For a private MyTelegram stack, use the api_id/api_hash expected by that server.
+define('api_id', 0);
+define('api_hash', '');

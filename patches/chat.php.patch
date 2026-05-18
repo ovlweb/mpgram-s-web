@@ -1,0 +1,34 @@
+--- chat.php
++++ chat.php
+@@ -259,7 +259,12 @@
+         if ($thread !== null) {
+             $p['top_msg_id'] = $thread;
+         }
+-        $mentions = $MP->messages->getUnreadMentions($p)['messages'];
++        // PATCHED for mpgram-web private server: getUnreadMentions may not be implemented.
++        try {
++            $mentions = $MP->messages->getUnreadMentions($p)['messages'];
++        } catch (Exception $e) {
++            $mentions = [];
++        }
+     }
+@@ -488,15 +493,17 @@
+             } else if ($ch || (int)$id < 0) {
+-                $MP->channels->readHistory(['channel' => $id, 'max_id' => $maxid]);
+-                $MP->messages->readMentions(['peer' => $id]);
++                try { $MP->channels->readHistory(['channel' => $id, 'max_id' => $maxid]); } catch (Exception $e) {}
++                try { $MP->messages->readMentions(['peer' => $id]); } catch (Exception $e) {}
+             } else {
+-                $MP->messages->readHistory(['peer' => $id, 'max_id' => $maxid]);
+-                $MP->messages->readMentions(['peer' => $id]);
++                try { $MP->messages->readHistory(['peer' => $id, 'max_id' => $maxid]); } catch (Exception $e) {}
++                try { $MP->messages->readMentions(['peer' => $id]); } catch (Exception $e) {}
+             }
+             //$MP->messages->readReactions(['peer' => $id]);
+         }
+     } catch (Exception $e) {
+-        echo $e;
++        // PATCHED for mpgram-web: swallow "API NotImplemented" instead of dumping the
++        // exception into the rendered chat. Individual read* calls above are now
++        // each in their own try/catch, so this is only reached for outer-level errors.
+     }
