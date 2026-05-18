@@ -177,6 +177,7 @@ This fork is based on the original lightweight client, but MPGram S Web now uses
 - Modern Safari
 - Modern Microsoft Edge
 - Modern mobile browsers based on Chromium or WebKit
+- Legacy Edge 15-18 / Windows 10 Mobile Edge, including Lumia devices
 
 ### Expected to work
 
@@ -184,6 +185,7 @@ These browsers should run the client, but are not part of the regular test loop:
 
 - WebPositive on recent Haiku builds
 - BlackBerry 10 Browser
+- Legacy Edge 12-14
 - Firefox 59 and newer
 - Opera 78 and newer
 - Safari 9 and newer
@@ -194,7 +196,6 @@ These browsers may load the app and basic pages, but the modern two-pane layout,
 
 - Internet Explorer 10-11
 - Internet Explorer 9
-- Legacy Edge 12-18
 - Opera 12.1 / Opera Mobile 12.1
 - Firefox 28-58
 - Nokia Browser for Symbian / S60
