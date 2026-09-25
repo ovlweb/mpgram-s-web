@@ -42,6 +42,7 @@ class MP {
     static $chats;
     static $colors;
     static array|null $settings = null;
+    static bool $localeLoaded = false;
 
     // Removes html special characters and converts to browser encoding
     static function dehtml($s)
@@ -1127,7 +1128,8 @@ class MP {
                     if (str_contains($s, ',')) {
                         $s = substr($s, 0, strpos($s, ','));
                     }
-                    static::$settings = json_decode(strtr(base64_decode($s), '-_', '+/'), true) ?? [];
+                    $s = json_decode(base64_decode(strtr($s, '-_', '+/')), true);
+                    static::$settings = is_array($s) ? $s : [];
                 }
             } catch (Exception) {}
         }
@@ -1302,6 +1304,12 @@ class MP {
     
     public static function initLocale(): array
     {
+        // Locale may be requested again after output has started (e.g. from Themes::appbar),
+        // so load it only once per request to avoid sending cookies late
+        if (static::$localeLoaded) {
+            return MPLocale::$lng;
+        }
+        static::$localeLoaded = true;
         $xlang = $lang = static::getSetting('lang', null, true);
         $lang ??= isset($_SERVER['HTTP_ACCEPT_LANGUAGE']) && str_contains(strtolower($_SERVER['HTTP_ACCEPT_LANGUAGE']), 'ru') ? 'ru' : 'en';
         include_once 'locale.php';

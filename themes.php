@@ -128,7 +128,8 @@ class Themes {
     {
         $file = static::chatBackgroundFile($user);
         if (!$file || !file_exists($file)) return null;
-        return 'cache/backgrounds/'.basename($file);
+        // version by mtime so browsers pick up a newly uploaded background
+        return 'cache/backgrounds/'.basename($file).'?v='.filemtime($file);
     }
 
     /**

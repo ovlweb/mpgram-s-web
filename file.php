@@ -302,9 +302,9 @@ try {
                 }
             } elseif ($p == 'view') {
                 $q = 70;
-                $h = (int) $_GET['th'] ?? $size;
+                $h = max(1, (int) ($_GET['th'] ?? $size));
                 $w = ($ow / $oh) * $h;
-                $tw = (int) $_GET['tw'] ?? $size;
+                $tw = max(1, (int) ($_GET['tw'] ?? $size));
                 if ($w > $tw) {
                     $w = $tw;
                     $h = ($oh / $ow) * $w;

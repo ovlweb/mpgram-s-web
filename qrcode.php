@@ -17,7 +17,7 @@ if (!isset($_GET['t']) && !isset($_SESSION['qr_token'])) {
 try {
     $options = new QROptions;
     $options->outputType = QROutputInterface::GDIMAGE_PNG;
-    $options->scale = (int) ($_GET['s'] ?? '6');
+    $options->scale = max(1, min(20, (int) ($_GET['s'] ?? 6)));
     $options->imageTransparent = false;
     $options->imageBase64 = false;
     $qr = (new QRCode($options))->render(base64_decode($_GET['t'] ?? $_SESSION['qr_token']));
@@ -27,10 +27,10 @@ try {
         $ow = imagesx($img);
         $oh = imagesy($img);
 
-        $h = (int) $_GET['th'] ?? 128;
+        $h = max(1, (int) ($_GET['th'] ?? 128));
         $w = ($ow / $oh) * $h;
 
-        $tw = (int) $_GET['tw'] ?? 128;
+        $tw = max(1, (int) ($_GET['tw'] ?? 128));
         if ($w > $tw) {
             $w = $tw;
             $h = ($oh / $ow) * $w;
@@ -41,6 +41,8 @@ try {
             echo $qr;
             die;
         }
+        $w = max(1, (int) $w);
+        $h = max(1, (int) $h);
         $newimg = imagecreatetruecolor($w, $h);
         imagecopyresampled($newimg, $img, 0, 0, 0, 0, $w, $h, $ow, $oh);
         header("Content-Type: image/png");

@@ -90,7 +90,7 @@ class MPLocale {
     }
     
     public static function load($lang = 'en') {
-        if (!$lang) {
+        if (!$lang || !is_string($lang) || !preg_match('/^[A-Za-z_]{2,10}$/', $lang)) {
             return false;
         }
         $x = './locale/' . $lang . '.json';

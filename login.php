@@ -118,9 +118,10 @@ function htmlEnd(): void
 }
 
 if (isset($_GET['logout']) || $revoked || $wrong) {
+    $fullLogout = ($_GET['logout'] ?? '') == '2' && !$nouser;
     $logout = true;
     $nouser = true;
-    removeSession(($_GET['logout'] ?? '') == '2' && !$nouser);
+    removeSession($fullLogout);
     $user = null;
 }
 
