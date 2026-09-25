@@ -9,7 +9,7 @@
 
 Usage example: `https://MPGRAM_INSTANCE/api.php?v=11&method=getPeer&id=nnmidlets`
 
-- Current version: 11
+- Current version: 12
 - Minimum compatible version: 2
 
 ## Methods rules
@@ -95,8 +95,8 @@ Object
     - `type`: `photo`
     - `id` (string): ID of photo
     - `date` (long or null): Date of photo
-    - `w` (int): Width of photo. **since v9**
-    - `h` (int): Height of photo. **since v9**
+    - `w` (int, optional): Width of photo. **since v9**
+    - `h` (int, optional): Height of photo. **since v9**
   - Document:
     - `type`: `document`
     - `id` (string)
@@ -869,6 +869,7 @@ Available since v5
 ### Parameters
 - `peer`: [Peer ID](#Peer-ID)
 - `id`: Comma-separated list of message IDs. **since v9**
+- `revoke` (optional): Set to 1 to remove message for everyone. **since v11**
 
 #### Changed since v9
 - `id`: Message ID.
@@ -897,6 +898,7 @@ Combined with message forwarding method, set `fwd_from` and `id` to forward a me
 - `fwd_from` (optional): Peer ID to forward message from
 - `id` (optional): Message ID to forward, required if `fwd_from` is set
 - `top` (optional): Topic message ID to forward to. **since v11**
+- `r` (optional): Seed for duplication check. **since v12**
 
 ### Response
 Object
@@ -924,10 +926,12 @@ Available since v6
 - `file` (optional): File via multipart request
 - `uncompressed` (optional): Set to 1 to send media uncompressed
 - `spoiler` (optional): Set to 1 to hide media under spoiler
+- `voice` (optional): Set to 1 to send audio file as voice message. **since v12**
 - `doc_id` (optional): Document ID
 - `doc_access_hash` (optional): Document access hash
 - `fwd_from` (optional): Peer ID to forward message from
 - `id` (optional): Message ID to forward, required if `fwd_from` is set
+- `r` (optional): Seed for duplication check. **since v12**
 
 ### Response
 Object
@@ -1017,7 +1021,7 @@ Available since v7
 ### Parameters
 - `peer`: [Peer ID](#Peer-ID)
 - `id`: Message ID
-- `unpin` (optional): set 1 to unpin previous pinned message
+- `unpin` (optional): set to 1 to unpin previous pinned message
 - `silent` (optional): set to 0 to send notification or 1 to not, 1 by default
 
 ### Response
@@ -1469,7 +1473,7 @@ Object
 
 ### Description
 
-Cancels `[updates](#updates)` method long-poll.
+Cancels [`updates`](#updates) method long-poll.
 
 Available since v9
 
@@ -1700,6 +1704,9 @@ Does not require authorization.
 
 ### GET Parameters
 - `t`: Base64 encoded text
+- `s` (optional): Scale. **since v12**
+- `tw` (optional): Target width. **since v12**
+- `th` (optional): Target height. **since v12**
 
 ### Response
 PNG Image
@@ -1794,3 +1801,5 @@ v11:
 - `sendVote`
 - `logout`
 - `getPeerInfo`
+
+v12:

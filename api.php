@@ -10,8 +10,10 @@ ini_set('output_buffering', 0);
 require_once("api_values.php");
 require_once("config.php");
 
+define("WINDOWS", stripos(PHP_OS, 'WIN') === 0);
+
 const def = 1;
-const API_VERSION = 11;
+const API_VERSION = 12;
 const MIN_LOGIN_API_VERSION = API_VERSION - 1;
 const MIN_API_VERSION = 2;
 
@@ -289,7 +291,12 @@ function findPeer($id, $r)
 
 function parsePeer($peer): string
 {
-    return strval(getId($peer) ?? error(['message' => 'Peer with null id detected']));
+//    global $v;
+    $id = getId($peer) ?? error(['message' => 'Peer with null id detected']);
+//    if ($v >= 13) {
+//        return (int) $id;
+//    }
+    return strval($id);
 }
 
 function parseDialog($rawDialog): array
@@ -375,6 +382,55 @@ function getCaptchaText($length): string
     return $s;
 }
 
+function parsePoll($out, $poll, $results): array
+{
+    if (isset($results['total_voters'])) {
+        $out['voted'] = $results['total_voters'];
+    }
+    if (!empty($poll)) {
+        $out['id'] = strval($poll['id']);
+        $out['closed'] = $poll['closed'] ?? false;
+        if ($poll['public_votes'] ?? false) {
+            $out['public'] = true;
+        }
+        if ($poll['multiple_choice'] ?? false) {
+            $out['multi'] = true;
+        }
+        if ($poll['quiz'] ?? false) {
+            $out['quiz'] = true;
+        }
+        if (isset($poll['question']['text'])) {
+            $out['text'] = $poll['question']['text'];
+        } else {
+            $out['text'] = $poll['question'] ?? '';
+        }
+    }
+    $out['options'] = [];
+    foreach ($results['results'] ?? $poll['answers'] ?? [] as $k => $v) {
+        $option = [];
+        if (!empty($poll)) {
+            $t = $poll['answers'][$k]['text'];
+            if (isset($t['text'])) {
+                $option['text'] = $t['text'];
+            } else {
+                $option['text'] = $t;
+            }
+        }
+        if ($v['chosen'] ?? false) {
+            $option['chosen'] = true;
+        }
+        if ($v['correct'] ?? false) {
+            $option['correct'] = true;
+        }
+        if (isset($v['voters'])) {
+            $option['voters'] = $v['voters'];
+        }
+        $option['data'] = base64_encode($v['option']);
+        $out['options'][] = $option;
+    }
+    return $out;
+}
+
 function parseMessage($rawMessage, $media = false, $short = false): array
 {
     global $v;
@@ -433,7 +489,9 @@ function parseMessage($rawMessage, $media = false, $short = false): array
             $media = [];
             if (isset($rawMedia['photo'])) {
                 $media['type'] = 'photo';
-                $media['id'] = strval($rawMedia['photo']['id']);
+                if (isset($rawMedia['photo']['id'])) {
+                    $media['id'] = strval($rawMedia['photo']['id']);
+                }
                 $media['date'] = $rawMedia['photo']['date'] ?? null;
                 if ($v >= 9 && isset($rawMedia['photo']['sizes'])) {
                     foreach ($rawMedia['photo']['sizes'] as $size) {
@@ -486,47 +544,7 @@ function parseMessage($rawMessage, $media = false, $short = false): array
             } elseif (isset($rawMedia['poll'])) {
                 $media['type'] = 'poll';
                 if ($v >= 11) {
-                    $poll = $rawMedia['poll'];
-                    if (isset($rawMedia['results']['total_voters'])) {
-                        $media['voted'] = $rawMedia['results']['total_voters'];
-                    }
-                    $media['id'] = strval($poll['id']);
-                    $media['closed'] = $poll['closed'] ?? false;
-                    if ($poll['public_votes'] ?? false) {
-                        $media['public'] = true;
-                    }
-                    if ($poll['multiple_choice'] ?? false) {
-                        $media['multi'] = true;
-                    }
-                    if ($poll['quiz'] ?? false) {
-                        $media['quiz'] = true;
-                    }
-                    if (isset($poll['question']['text'])) {
-                        $media['text'] = $poll['question']['text'];
-                    } else {
-                        $media['text'] = $poll['question'] ?? '';
-                    }
-                    $media['options'] = [];
-                    foreach ($rawMedia['results']['results'] ?? $poll['answers'] as $k => $v) {
-                        $option = [];
-                        $t = $poll['answers'][$k]['text'];
-                        if (isset($t['text'])) {
-                            $option['text'] = $t['text'];
-                        } else {
-                            $option['text'] = $t;
-                        }
-                        if ($v['chosen'] ?? false) {
-                            $option['chosen'] = true;
-                        }
-                        if ($v['correct'] ?? false) {
-                            $option['correct'] = true;
-                        }
-                        if (isset($v['voters'])) {
-                            $option['voters'] = $v['voters'];
-                        }
-                        $option['data'] = base64_encode($v['option']);
-                        $media['options'][] = $option;
-                    }
+                    $media = parsePoll($media, $rawMedia['poll'], $rawMedia['results']);
                 }
             } else {
                 // TODO
@@ -681,13 +699,17 @@ try {
         $c = getCaptchaText(rand(6, 10));
         $_SESSION['captcha_key'] = $c;
         session_write_close();
+        /** @noinspection PhpComposerExtensionStubsInspection */
         $img = imagecreatetruecolor(120, 40);
+        /** @noinspection PhpComposerExtensionStubsInspection */
         imagefill($img, 0, 0, -1);
+        /** @noinspection PhpComposerExtensionStubsInspection */
         imagestring($img, rand(4, 10), rand(0, 30), rand(0, 20), $c, 0x000000);
         header("Cache-Control: no-store, no-cache, must-revalidate");
         header('Content-type: image/png');
+        /** @noinspection PhpComposerExtensionStubsInspection */
         imagepng($img);
-        imagedestroy($img);
+        /** @noinspection PhpComposerExtensionStubsInspection */
         break;
         /** @noinspection PhpMissingBreakStatementInspection */
     case 'initLogin':
@@ -715,7 +737,7 @@ try {
                 error(['message' => "Instance password is required"]);
             }
         }
-        $id = $PARAMS['captcha_id'] ?? md5(random_bytes(32));
+        $id = $PARAMS['captcha_id'] ?? md5(random_bytes(200));
         session_id('API' . $id);
         session_start(['use_cookies' => '0']);
         if (!isset($PARAMS['captcha_id']) || !isset($PARAMS['captcha_key'])) {
@@ -744,6 +766,41 @@ try {
         }
         unset($_SESSION['captcha_key']);
         session_write_close();
+
+        if (function_exists('apcu_enabled') && apcu_enabled()) {
+            if (defined('LOGIN_REQUESTS_BY_IP')) {
+                $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+                if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                    $ip = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0];
+                }
+                $ip = hash('sha384', $ip);
+
+                /** @noinspection PhpComposerExtensionStubsInspection */
+                $a = apcu_fetch($ip);
+                if ($a === false) {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_store($ip, 1, 86400);
+                } else if ($a >= LOGIN_REQUESTS_BY_IP) {
+                    error(['message' => "Too many login requests. Try again later."]);
+                } else {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_inc($ip);
+                }
+            }
+            if (defined('LOGIN_TOTAL_DAILY_LIMIT')) {
+                /** @noinspection PhpComposerExtensionStubsInspection */
+                $a = apcu_fetch('daily_logins');
+                if ($a === false) {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_store('daily_logins', 1, 86400);
+                } else if ($a >= LOGIN_TOTAL_DAILY_LIMIT) {
+                    error(['message' => "Too many login requests today. Try again later."]);
+                } else {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_inc('daily_logins');
+                }
+            }
+        }
 
         $phone = getParam('phone', 'qr');
         $user = $_SERVER['HTTP_X_MPGRAM_USER'] ?? $PARAMS['user'] ?? null;
@@ -1478,21 +1535,41 @@ try {
         $longpoll = (int) getParam('longpoll', '1');
         $checkmuted = !isParamEmpty('m');
         $delay = (int) getParam('delay', '0');
-        if (getParam('p', '0') == '1') {
-            $t = [
-            'updateUserStatus',
-            'updateUserTyping',
-            'updateChatUserTyping',
-            'updateChannelUserTyping',
-            'updateNewMessage',
-            'updateNewChannelMessage',
-            'updateDeleteChannelMessages',
-            'updateDeleteMessages',
-            'updateEditMessage',
-            'updateEditChannelMessage',
-            'updateReadHistoryOutbox',
-            'updateReadChannelOutbox'
-            ];
+        $preset = getParam('p', '0');
+        if ($preset != '0') {
+            $t = [];
+            if ($preset == '1') {
+                $t = [
+                    'updateUserStatus',
+                    'updateUserTyping',
+                    'updateChatUserTyping',
+                    'updateChannelUserTyping',
+                    'updateNewMessage',
+                    'updateNewChannelMessage',
+                    'updateDeleteChannelMessages',
+                    'updateDeleteMessages',
+                    'updateEditMessage',
+                    'updateEditChannelMessage',
+                    'updateReadHistoryOutbox',
+                    'updateReadChannelOutbox'
+                ];
+            } else if ($preset == '2') {
+                $t = [
+                    'updateUserStatus',
+                    'updateUserTyping',
+                    'updateChatUserTyping',
+                    'updateChannelUserTyping',
+                    'updateNewMessage',
+                    'updateNewChannelMessage',
+                    'updateDeleteChannelMessages',
+                    'updateDeleteMessages',
+                    'updateEditMessage',
+                    'updateEditChannelMessage',
+                    'updateReadHistoryOutbox',
+                    'updateReadChannelOutbox',
+                    'updateMessagePoll'
+                ];
+            }
             if (empty($types)) {
                 $types = $t;
             } else {
@@ -1611,6 +1688,21 @@ try {
                         if ($peer) {
                             if (isset($update['update']['peer']) && $update['update']['peer'] != $peer) continue;
                             if (isset($update['update']['channel_id']) && $update['update']['channel_id'] != $peer) continue;
+                            $res[] = $update;
+                        }
+                    }
+                    if ($type == 'updateMessagePoll') {
+                        if (isset($update['update']['peer'])) {
+                            $update['update']['peer'] = parsePeer($update['update']['peer']);
+                        }
+                        $poll = parsePoll([], $update['update']['poll'] ?? null, $update['update']['results']);
+                        $poll['id'] = strval($update['update']['poll_id']);
+                        $update['update']['poll'] = $poll;
+                        unset($update['update']['results']);
+                        if ($peer) {
+                            if (isset($update['update']['peer']) && $update['update']['peer'] != $peer) continue;
+                            if ($thread && isset($update['update']['top_msg_id']) && $update['update']['top_msg_id'] != $thread)
+                                continue;
                             $res[] = $update;
                         }
                     }
@@ -1764,7 +1856,7 @@ try {
         $peer = getParam('peer');
         $ids = explode(',', getParam('id'));
         if (is_numeric($peer) && ((int) $peer > 0 || (int) $peer > Magic::ZERO_CHANNEL_ID)) {
-            $MP->messages->deleteMessages(id: $ids);
+            $MP->messages->deleteMessages(revoke: !isParamEmpty('revoke'), id: $ids);
         } else {
             $MP->channels->deleteMessages(channel: $peer, id: $ids);
         }
@@ -1822,6 +1914,17 @@ try {
         setupMadelineProto();
         $peer = (int) getParam('peer');
 
+        if (!isParamEmpty('r')) {
+            $r = getParam('r');
+            session_id('API' . md5($_SERVER['HTTP_X_MPGRAM_USER'] ?? $PARAMS['user']));
+            session_start(['use_cookies' => '0']);
+            if (isset($_SESSION['r']) && $_SESSION['r'] == $r) {
+                json(['res' => '2']);
+            }
+            $_SESSION['r'] = $r;
+            session_write_close();
+        }
+
         if ($METHOD != 'editMessage' && !isParamEmpty('fwd_from')) {
             $p = [
                 'from_peer' => (int) getParam('fwd_from'),
@@ -1850,14 +1953,23 @@ try {
             $p['parse_mode'] = 'HTML';
         }
 
+        $voice = false;
+        if (!isParamEmpty('voice')) {
+            if (!defined('CONVERT_VOICE_MESSAGES') || !CONVERT_VOICE_MESSAGES) {
+                error(['message' => 'Voice conversion not supported']);
+                break;
+            }
+            $voice = true;
+        }
+
         if (!isset($_FILES['file'])) {
             if ($METHOD == 'sendMedia' && (isParamEmpty('doc_id') || isParamEmpty('doc_access_hash'))) {
-                json(['error' => ['message' => 'No file: ' . var_export($_FILES, true)]]);
+                error(['message' => 'No file: ' . var_export($_FILES, true)]);
                 break;
             }
         } else {
             if (($_FILES['file']['error'] ?? false) && $_FILES['file']['error'] != 4) {
-                json(['error' => ['message' => 'File error: ' . $_FILES['file']['error']]]);
+                error(['message' => 'File error: ' . $_FILES['file']['error']]);
                 break;
             }
         }
@@ -1865,28 +1977,127 @@ try {
         try {
             if ($file) {
                 if ($_FILES['file']['size'] == 0) {
-                    json(['error' => ['message' => 'Size error']]);
+                    error(['message' => 'Size error']);
                     break;
                 }
                 $max = 20 * 1024 * 1024;
                 if (defined('UPLOAD_SIZE_LIMIT')) $max = UPLOAD_SIZE_LIMIT;
                 if ($_FILES['file']['size'] > $max) {
-                    json(['error' => ['message' => 'File is too large']]);
+                    error(['message' => 'File is too large']);
                     break;
                 }
 
                 $filename = $_FILES['file']['name'];
                 $extidx = strrpos($filename, '.');
-                if ($extidx === false) {
-                    json(['error' => ['message' => 'Invalid file extension']]);
+                if ($extidx === false || !is_uploaded_file($file)) {
+                    error(['message' => 'Invalid file']);
                     break;
                 }
                 $ext = strtolower(substr($filename, $extidx + 1));
                 $attr = false;
                 $type = null;
+                $dur = 0;
+                $waveform = false;
                 if (!isParamEmpty('uncompressed')) {
                     $type = 'inputMediaUploadedDocument';
                     $attr = true;
+                } elseif ($voice) {
+                    switch ($ext) {
+                    case 'amr':
+                    case 'mp3':
+                    case 'aac':
+                    case 'ogg':
+                    case 'm4a':
+                    case 'wav':
+                        $newfile = $file.'.ogg';
+                        $res = shell_exec('"'.FFMPEG_DIR.'ffmpeg" -i '.escapeshellarg($file).' -c:a libopus -ac 1 -ar 48000 -filter:a speechnorm=e=10:p=0.9 -y -map 0:a -map_metadata -1 '.escapeshellarg($newfile).(WINDOWS?'':' 2>&1')) ?? '';
+                        unlink($file);
+                        if (str_contains($res, 'failed') || !file_exists($newfile)) {
+                            $result = 'Conversion failed';
+                            break;
+                        }
+                        $i = strpos($res, 'Duration:');
+
+                        if ($i !== false) {
+                            $i = strpos($res, ' ', $i);
+                            $s = substr($res, $i, strpos($res, '.', $i));
+                            $s = explode(':', $s);
+                            $dur = ((int)$s[2])+((int)$s[1])*60+((int)$s[0])*60*60;
+                            if ($dur > 3600) {
+                                unlink($newfile);
+                                error(['message' => 'Duration is too long']);
+                                break;
+                            }
+                        }
+                        try {
+                            $nsamples = 48000;
+                            if ($dur != 0) {
+                                $nsamples = max(512, (int)(($dur * 48000) / 100));
+                            }
+                            $res = shell_exec('"'.FFMPEG_DIR.'ffprobe" -v error -f lavfi -i '.escapeshellarg('amovie='.$newfile.',asetnsamples='.$nsamples.',astats=metadata=1:reset=1').' -show_entries frame_tags=lavfi.astats.Overall.Peak_level -of json'.(WINDOWS?'':' 2>&1')) ?? false;
+
+                            if ($res) {
+                                $j = json_decode($res);
+                                if ($j) {
+                                    $frames = $j->{'frames'};
+                                    unset($j);
+                                    $waveform = array(100);
+                                    $sampleIndex = 0;
+                                    $peakSample = 0;
+                                    $index = 0;
+                                    $sampleRate = max(1, (int) (count($frames) / 100));
+                                    $s2 = 100 / count($frames);
+
+                                    foreach ($frames as $frame) {
+                                        $sample = $frame->{'tags'}->{'lavfi.astats.Overall.Peak_level'};
+                                        $sample = $sample == '-inf' ? -100.0 : floatval($sample);
+                                        $sample = max(0, (int) (32768 * (10 ** ($sample / 20.0))));
+                                        if ($sample > $peakSample) {
+                                            $peakSample = $sample;
+                                        }
+                                        if ($sampleIndex++ % $sampleRate == 0) {
+                                            if ($index < 100) {
+                                                if ($sampleRate == 1) {
+                                                    $i = 0;
+                                                    while ($i++ < $s2) $waveform[$index++] = $peakSample;
+                                                } else {
+                                                    $waveform[$index++] = $peakSample;
+                                                }
+                                            }
+                                            $peakSample = 0;
+                                        }
+                                    }
+                                    unset($frames);
+
+                                    if (count($waveform) > 100) {
+                                        $waveform = array_slice($waveform, 0, 100);
+                                    }
+
+                                    $sumSamples = 0;
+                                    foreach ($waveform as $sample) {
+                                        $sumSamples += $sample;
+                                    }
+
+                                    $peak = (int) ($sumSamples * 1.8 / 100);
+                                    if ($peak < 2500) $peak = 2500;
+
+                                    for ($i = 0; $i < 100; $i++) {
+                                        $sample = $waveform[$i];
+                                        if ($sample > $peak) $sample = $peak;
+                                        $waveform[$i] = max(0, min(31, (int) ($sample * 31 / $peak)));
+                                    }
+                                }
+                            }
+                        } catch (Exception) {
+                        }
+
+                        $file = $newfile;
+                        $type = 'inputMediaUploadedDocument';
+                        break;
+                    default:
+                        error(['message' => 'Unsupported audio format']);
+                        break;
+                    }
                 } else {
                     switch ($ext) {
                     case 'jpg':
@@ -1907,7 +2118,13 @@ try {
                     }
                 }
                 $attributes = [];
-                if ($attr) {
+                if ($voice) {
+                    $att = ['_' => 'documentAttributeAudio', 'voice' => true, 'duration' => $dur];
+                    if ($waveform !== false) {
+                        $att['waveform'] = $waveform;
+                    }
+                    $attributes[] = $att;
+                } elseif ($attr) {
                     $attributes[] = ['_' => 'documentAttributeFilename', 'file_name' => $filename];
                 }
                 $p['media'] = ['_' => $type, 'file' => $file, 'attributes' => $attributes, 'spoiler' => !isParamEmpty('spoiler')];
@@ -2141,7 +2358,7 @@ try {
 
         json([
             'id' => $msg['id'],
-            'peer_id' => strval(getId($msg['peer_id'])),
+            'peer_id' => parsePeer($msg['peer_id']),
             'unread' => $r['unread_count'] ?? 0,
             'read' => max($r['read_inbox_max_id'] ?? 0, $r['read_outbox_max_id'] ?? 0, $msg['id']),
             'max_id' => $r['max_id'] ?? 0
@@ -2287,8 +2504,10 @@ try {
         setupMadelineProto();
 
         $options = [];
-        foreach (explode(',', getParam('options')) as $v) {
-            $options[] = base64_decode($v);
+        if (!isParamEmpty('options')) {
+            foreach (explode(',', getParam('options')) as $v) {
+                $options[] = base64_decode($v);
+            }
         }
         $MP->messages->sendVote(peer: getParam('peer'), msg_id: getParam('id'), options: $options);
 

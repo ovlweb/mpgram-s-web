@@ -10,12 +10,12 @@ ini_set('display_startup_errors', 1);
 
 include 'mp.php';
 
-MP::startSession();
-
 if (!defined('LOGIN_CAPTCHA')) define('LOGIN_CAPTCHA', true);
 
 $theme = 0;
-$ua = '';
+$ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+// BlackBerry browser can't input into password fields properly
+$passType = str_contains($ua, 'BlackBerry') ? 'text' : 'password';
 $iev = MP::getIEVersion();
 if ($iev > 0 && $iev < 4) $theme = 1;
 $theme = MP::getSettingInt('theme', $theme, true);
@@ -51,6 +51,7 @@ $ipass = $_GET['ipass'] ?? $_POST['ipass'] ?? null;
 $nouser = empty($user) || strlen($user) < 32 || strlen($user) > 200 || !file_exists(sessionspath.$user.'.madeline');
 function removeSession($logout=false): void
 {
+    MP::startSession();
     global $user;
     $_SESSION = [];
     MP::delcookie('user');
@@ -149,7 +150,7 @@ if (defined('INSTANCE_PASSWORD') && INSTANCE_PASSWORD !== null) {
         echo '<form class="auth-submit-form" action="login.php"';
         if ($post) echo ' method="post"';
         echo '>';
-        echo auth_field('Instance password', 'ipass', '', 'password', 'autocomplete="current-password"');
+        echo auth_field('Instance password', 'ipass', '', $passType, 'autocomplete="current-password"');
         echo auth_submit(auth_text('Continue', 'Продолжить'), auth_text('Checking', 'Проверяем'));
         echo '</form>';
         if ($ipass !== null) echo '<b>Wrong password</b>';
@@ -166,6 +167,7 @@ if ($phone !== null) {
         header('Location: login.php?wrong=number');
         die;
     }
+    MP::startSession();
     if (!isset($_SESSION['captcha_entered']) && LOGIN_CAPTCHA) {
         if (!isset($_POST['c']) && !isset($_GET['c'])) {
             htmlStart();
@@ -223,6 +225,49 @@ if ($phone !== null) {
         }
     }
     if (!isset($user) || $nouser) {
+        if (function_exists('apcu_enabled') && apcu_enabled()) {
+            if (defined('LOGIN_REQUESTS_BY_IP')) {
+                $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+                if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                    $ip = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0];
+                }
+                $ip = hash('sha384', $ip);
+
+                /** @noinspection PhpComposerExtensionStubsInspection */
+                $a = apcu_fetch($ip);
+                if ($a === false) {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_store($ip, 1, 86400);
+                } else if ($a >= LOGIN_REQUESTS_BY_IP) {
+                    htmlStart();
+                    echo '<b>' . MP::x($lng['error']) . '</b><br>';
+                    echo MP::x($lng['login_too_many_requests'] ?? 'Too many login requests. Try again later.');
+                    htmlEnd();
+                    die;
+                } else {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_inc($ip);
+                }
+            }
+            if (defined('LOGIN_TOTAL_DAILY_LIMIT')) {
+                /** @noinspection PhpComposerExtensionStubsInspection */
+                $a = apcu_fetch('daily_logins');
+                if ($a === false) {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_store('daily_logins', 1, 86400);
+                } else if ($a >= LOGIN_TOTAL_DAILY_LIMIT) {
+                    htmlStart();
+                    echo '<b>' . MP::x($lng['error']) . '</b><br>';
+                    echo MP::x($lng['login_too_many_requests_today'] ?? 'Too many login requests today. Try again later.');
+                    htmlEnd();
+                    die;
+                } else {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_inc('daily_logins');
+                }
+            }
+        }
+
         $_SESSION['user'] = $user = rtrim(strtr(base64_encode(hash('sha384', sha1(md5($phone.rand(0,1000).random_bytes(6))).random_bytes(30), true)), '+/', '-_'), '=');
         MP::cookie('user', $user, time() + (86400 * 365));
         $MP = MP::getMadelineAPI($user, true);
@@ -247,7 +292,7 @@ if ($phone !== null) {
                     echo '<form class="auth-submit-form" action="login.php"';
                     if ($post) echo ' method="post"';
                     echo '>';
-                    echo auth_field($lng['pass_code'], 'pass', '', 'password', 'autocomplete="current-password"');
+                    echo auth_field($lng['pass_code'], 'pass', '', $passType, 'autocomplete="current-password"');
                     echo auth_hidden($phone, $ipass);
                     echo auth_submit(auth_text('Continue', 'Продолжить'), auth_text('Checking', 'Проверяем'));
                     echo '</form>';
@@ -318,7 +363,7 @@ if ($phone !== null) {
                         echo '<form class="auth-submit-form" action="login.php"';
                         if ($post) echo ' method="post"';
                         echo '>';
-                        echo auth_field($lng['pass_code'], 'pass', '', 'password', 'autocomplete="current-password"');
+                        echo auth_field($lng['pass_code'], 'pass', '', $passType, 'autocomplete="current-password"');
                         echo auth_hidden($phone, $ipass);
                         echo auth_submit(auth_text('Continue', 'Продолжить'), auth_text('Checking', 'Проверяем'));
                         echo '</form>';

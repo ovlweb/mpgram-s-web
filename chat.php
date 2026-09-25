@@ -1,6 +1,6 @@
 <?php
 /*
-Copyright (c) 2022-2025 Arman Jussupgaliyev
+Copyright (c) 2022-2026 Arman Jussupgaliyev
 */
 include 'redirect.php';
 
@@ -648,7 +648,7 @@ else setTimeout(ovlLoadInlineAvatars,250);
             if ($thread != null) {
                 $MP->messages->readDiscussion(['peer' => $id, 'read_max_id' => $maxid, 'msg_id' => $thread]);
                 $MP->messages->readMentions(['peer' => $id, 'top_msg_id' => $thread]);
-            } else if ($ch || (int)$id < 0) {
+            } else if ($ch || MP::isChannel((int)$id)) {
                 try { $MP->channels->readHistory(['channel' => $id, 'max_id' => $maxid]); } catch (Exception $e) {}
                 try { $MP->messages->readMentions(['peer' => $id]); } catch (Exception $e) {}
             } else {

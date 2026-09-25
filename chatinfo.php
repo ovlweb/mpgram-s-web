@@ -259,7 +259,6 @@ function profile_warm_avatar_cache($MP, $user, $cid, $info, $p) {
         }
         $data = ob_get_clean();
         @file_put_contents($cacheFile, $data);
-        imagedestroy($img);
     } catch (Throwable $e) {}
 }
 
@@ -335,7 +334,6 @@ function profile_warm_verify_icon_cache($MP, $user, $icon, $size) {
         imagepng($img);
         $out = ob_get_clean();
         @file_put_contents($cacheFile, $out);
-        imagedestroy($img);
     } catch (Throwable $e) {}
 }
 

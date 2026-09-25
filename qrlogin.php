@@ -104,6 +104,50 @@ if ($user === null || $nouser) {
         die;
     } else {
         unset($_SESSION['captcha']);
+
+        if (function_exists('apcu_enabled') && apcu_enabled()) {
+            if (defined('LOGIN_REQUESTS_BY_IP')) {
+                $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+                if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                    $ip = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0];
+                }
+                $ip = hash('sha384', $ip);
+
+                /** @noinspection PhpComposerExtensionStubsInspection */
+                $a = apcu_fetch($ip);
+                if ($a === false) {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_store($ip, 1, 86400);
+                } else if ($a >= LOGIN_REQUESTS_BY_IP) {
+                    htmlStart();
+                    echo '<b>' . MP::x($lng['error']) . '</b><br>';
+                    echo MP::x($lng['login_too_many_requests'] ?? 'Too many login requests. Try again later.');
+                    htmlEnd();
+                    die;
+                } else {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_inc($ip);
+                }
+            }
+            if (defined('LOGIN_TOTAL_DAILY_LIMIT')) {
+                /** @noinspection PhpComposerExtensionStubsInspection */
+                $a = apcu_fetch('daily_logins');
+                if ($a === false) {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_store('daily_logins', 1, 86400);
+                } else if ($a >= LOGIN_TOTAL_DAILY_LIMIT) {
+                    htmlStart();
+                    echo '<b>' . MP::x($lng['error']) . '</b><br>';
+                    echo MP::x($lng['login_too_many_requests_today'] ?? 'Too many login requests today. Try again later.');
+                    htmlEnd();
+                    die;
+                } else {
+                    /** @noinspection PhpComposerExtensionStubsInspection */
+                    apcu_inc('daily_logins');
+                }
+            }
+        }
+
         $user = 'qr_'.hash('sha384', sha1(random_bytes(32).rand(0,1000)).sha1(random_bytes(32)));
         MP::cookie('user', $user, time() + (86400 * 365));
         $MP = MP::getMadelineAPI($user, true);

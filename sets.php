@@ -1,6 +1,6 @@
 <?php
 /*
-Copyright (c) 2022-2025 Arman Jussupgaliyev
+Copyright (c) 2022-2026 Arman Jussupgaliyev
 MPGram S Web — settings refactored into categories.
 */
 $lang = 'ru';
@@ -32,8 +32,31 @@ include 'mp.php';
 
 MP::startSession();
 
+$settingKeys = ['lang','autoupd','updint','theme','chats','reverse','autoscroll','limit','avas','texttop','longpoll','status','imgs','pngava','oldchat','photosize','bgsize','chatbg','chatbgblur','chatbgdark'];
+
+// ---- chat-settings load (settings cookie > legacy php session > legacy cookies) ----
+$sets = MP::getSettings();
+foreach ($settingKeys as $k) {
+    if (isset($sets[$k])) continue;
+    // migrate values saved by older versions
+    if (isset($_SESSION[$k])) {
+        $sets[$k] = $_SESSION[$k];
+    } elseif (isset($_COOKIE[$k])) {
+        $v = $_COOKIE[$k];
+        if (str_contains($v, ',')) {
+            $v = substr($v, 0, strpos($v, ','));
+        }
+        $sets[$k] = $v;
+    }
+}
+foreach ($settingKeys as $k) {
+    if (isset($sets[$k])) {
+        $$k = ($k === 'lang') ? (string)$sets[$k] : (int)$sets[$k];
+    }
+}
+
 if ($set) {
-    // ---- chat-settings save (cookies + session) ----
+    // ---- chat-settings save ----
     $autoupd = isset($_GET['autoupd']) ? 1 : 0;
     $reverse = isset($_GET['reverse']) ? 1 : 0;
     $autoscroll = isset($_GET['autoscroll']) ? 1 : 0;
@@ -50,9 +73,9 @@ if ($set) {
     if (isset($_GET['limit']))  { $limit = max(5, min(50, (int)$_GET['limit'])); }
     if (isset($_GET['photosize'])) { $photosize = (int)$_GET['photosize']; }
     if (isset($_GET['bgsize']))    { $bgsize = (int)$_GET['bgsize']; }
-    $oldChatbg = isset($_SESSION['chatbg']) ? (int)$_SESSION['chatbg'] : (isset($_COOKIE['chatbg']) ? (int)$_COOKIE['chatbg'] : $chatbg);
-    $oldChatbgblur = isset($_SESSION['chatbgblur']) ? (int)$_SESSION['chatbgblur'] : (isset($_COOKIE['chatbgblur']) ? (int)$_COOKIE['chatbgblur'] : $chatbgblur);
-    $oldChatbgdark = isset($_SESSION['chatbgdark']) ? (int)$_SESSION['chatbgdark'] : (isset($_COOKIE['chatbgdark']) ? (int)$_COOKIE['chatbgdark'] : $chatbgdark);
+    $oldChatbg = $chatbg;
+    $oldChatbgblur = $chatbgblur;
+    $oldChatbgdark = $chatbgdark;
     $chatBgFieldsSubmitted = isset($_GET['chatbg_present']);
     if (isset($_GET['chatbgdark'])) { $chatbgdark = max(0, min(85, (int)$_GET['chatbgdark'])); }
     else { $chatbgdark = max(0, min(85, $oldChatbgdark)); }
@@ -68,24 +91,13 @@ if ($set) {
     MP::cookie('lang', $lang, time() + (86400 * 365));
     MP::cookie('updint', $updint, time() + (86400 * 365));
     MP::cookie('theme', $theme, time() + (86400 * 365));
-    MP::cookie('chatbg', $chatbg, time() + (86400 * 365));
-    MP::cookie('chatbgblur', $chatbgblur, time() + (86400 * 365));
-    MP::cookie('chatbgdark', $chatbgdark, time() + (86400 * 365));
 
-    foreach (['lang','autoupd','updint','theme','chats','reverse','autoscroll','limit','avas','texttop','longpoll','status','imgs','pngava','oldchat','photosize','bgsize','chatbg','chatbgblur','chatbgdark'] as $k) {
-        $_SESSION[$k] = $$k;
-    }
-} else {
-    // ---- chat-settings load (cookies > session) ----
-    foreach (['lang','autoupd','updint','theme','chats','reverse','autoscroll','limit','avas','texttop','longpoll','status','imgs','pngava','oldchat','photosize','bgsize','chatbg','chatbgblur','chatbgdark'] as $k) {
-        if (isset($_COOKIE[$k])) {
-            $$k = ($k === 'lang') ? $_COOKIE[$k] : (int)$_COOKIE[$k];
-        }
-        if (isset($_SESSION[$k])) {
-            $$k = ($k === 'lang') ? $_SESSION[$k] : (int)$_SESSION[$k];
-        }
+    foreach ($settingKeys as $k) {
+        $sets[$k] = $$k;
     }
 }
+
+MP::setSettings($sets);
 
 $lng = MP::initLocale();
 
@@ -245,7 +257,6 @@ if ($user && !empty($_POST['action'])) {
                     $img = $bytes === false ? false : @imagecreatefromstring($bytes);
                     if ($img !== false) {
                         $saved = @imagejpeg($img, $target, 88);
-                        @imagedestroy($img);
                     }
                 }
                 if (!$saved && $target) {
@@ -255,8 +266,9 @@ if ($user && !empty($_POST['action'])) {
                     throw new Exception('Could not save background');
                 }
                 $chatbg = 1;
-                $_SESSION['chatbg'] = 1;
-                MP::cookie('chatbg', 1, time() + (86400 * 365));
+                $sets = MP::getSettings();
+                $sets['chatbg'] = 1;
+                MP::setSettings($sets);
                 $shouldReloadParent = true;
                 $flash = $lng['set_chat_background_uploaded'] ?? 'Chat background updated';
                 break;
@@ -264,8 +276,9 @@ if ($user && !empty($_POST['action'])) {
                 $target = Themes::chatBackgroundFile($user);
                 if ($target && file_exists($target)) @unlink($target);
                 $chatbg = 0;
-                $_SESSION['chatbg'] = 0;
-                MP::cookie('chatbg', 0, time() + (86400 * 365));
+                $sets = MP::getSettings();
+                $sets['chatbg'] = 0;
+                MP::setSettings($sets);
                 $shouldReloadParent = true;
                 $flash = $lng['set_chat_background_removed'] ?? 'Chat background removed';
                 break;
@@ -319,6 +332,8 @@ function sets_parse_business_hours(string $text): ?array {
     }
     return $out ?: null;
 }
+
+MP::sendSettings();
 
 echo '<html><head><title>'.MP::x($lng['settings']).'</title>';
 echo Themes::head();
