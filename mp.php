@@ -41,6 +41,8 @@ class MP {
     static $users;
     static $chats;
     static $colors;
+    static array|null $settings = null;
+    static bool $localeLoaded = false;
 
     // Removes html special characters and converts to browser encoding
     static function dehtml($s)
@@ -1116,45 +1118,87 @@ class MP {
         return $MP;
     }
 
+    static function getSettings(): array
+    {
+        if (static::$settings === null) {
+            static::$settings = [];
+            try {
+                if (isset($_COOKIE['sets'])) {
+                    $s = $_COOKIE['sets'];
+                    if (str_contains($s, ',')) {
+                        $s = substr($s, 0, strpos($s, ','));
+                    }
+                    $s = json_decode(base64_decode(strtr($s, '-_', '+/')), true);
+                    static::$settings = is_array($s) ? $s : [];
+                }
+            } catch (Exception) {}
+        }
+        return static::$settings;
+    }
+
+    static function setSettings($sets): void
+    {
+        static::$settings = $sets;
+        if (!str_contains($_SERVER['PHP_SELF'] ?? '', 'sets.php')) {
+            static::sendSettings();
+        }
+    }
+
+    static function sendSettings(): void
+    {
+        static::cookie('sets', rtrim(strtr(base64_encode(json_encode(static::$settings)), '+/', '-_'), '='));
+    }
+
     static function getSetting($name, $def=null, $write=false)
     {
-        static::startSession();
+        if (isset($_COOKIE['PHPSESSID'])) {
+            static::startSession();
+        }
+        $sets = static::getSettings();
         $x = $def;
         if (isset($_GET[$name])) {
             $x = $_GET[$name];
             $write = true;
+        } elseif (isset($sets[$name])) {
+            $x = $sets[$name];
         } elseif (isset($_SESSION[$name])) {
             $x = $_SESSION[$name];
         } elseif (isset($_COOKIE[$name])) {
             $x = $_COOKIE[$name];
-            if (str_contains($x, ', ')) {
-                $x = substr($x, 0, strpos($x, ', '));
+            if (str_contains($x, ',')) {
+                $x = substr($x, 0, strpos($x, ','));
             }
         }
         if (isset($_GET[$name]) && $write) {
-            $_SESSION[$name] = $x;
-            //static::cookie($name, $x, time() + (86400 * 365));
+            $sets[$name] = $x;
+            self::setSettings($sets);
         }
         return $x;
     }
 
     static function getSettingInt($name, $def=0, $write=false)
     {
-        static::startSession();
+        if (isset($_COOKIE['PHPSESSID'])) {
+            static::startSession();
+        }
+        $sets = static::getSettings();
         $x = $def;
         if (isset($_GET[$name])) {
             $x = ($_GET[$name] === 'on') ? 1 : (int) $_GET[$name];
+        } elseif (isset($sets[$name])) {
+            $x = (int) $sets[$name];
         } elseif (isset($_SESSION[$name])) {
             $x = (int) $_SESSION[$name];
         } elseif (isset($_COOKIE[$name])) {
             $x = $_COOKIE[$name];
-            if (str_contains($x, ', ')) {
-                $x = substr($x, 0, strpos($x, ', '));
+            if (str_contains($x, ',')) {
+                $x = substr($x, 0, strpos($x, ','));
             }
             $x = (int)$x;
         }
         if (isset($_GET[$name]) && $write) {
-            $_SESSION[$name] = $x;
+            $sets[$name] = $x;
+            self::setSettings($sets);
             //static::cookie($name, $x, time() + (86400 * 365));
         }
         return $x;
@@ -1260,6 +1304,12 @@ class MP {
     
     public static function initLocale(): array
     {
+        // Locale may be requested again after output has started (e.g. from Themes::appbar),
+        // so load it only once per request to avoid sending cookies late
+        if (static::$localeLoaded) {
+            return MPLocale::$lng;
+        }
+        static::$localeLoaded = true;
         $xlang = $lang = static::getSetting('lang', null, true);
         $lang ??= isset($_SERVER['HTTP_ACCEPT_LANGUAGE']) && str_contains(strtolower($_SERVER['HTTP_ACCEPT_LANGUAGE']), 'ru') ? 'ru' : 'en';
         include_once 'locale.php';

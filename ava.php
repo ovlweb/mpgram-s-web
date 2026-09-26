@@ -1,6 +1,6 @@
 <?php
 /*
-Copyright (c) 2022-2025 Arman Jussupgaliyev
+Copyright (c) 2022-2026 Arman Jussupgaliyev
 */
 function exceptions_error_handler($severity, $message, $filename, $lineno) {
     throw new ErrorException($message, 0, $severity, $filename, $lineno);
@@ -114,7 +114,6 @@ try {
             } else {
                 imagepng($img);
             }
-            imagedestroy($img);
             die;
         }
         header('Content-Type: image/jpeg');
@@ -127,7 +126,6 @@ try {
         } else {
             imagejpeg($img, null, 80);
         }
-        imagedestroy($img);
     } else if ($default) {
         header('Content-Type: image/png');
         if ((int) $cid < 0) {

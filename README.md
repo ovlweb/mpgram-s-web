@@ -89,6 +89,8 @@ sh setup-client.sh mytelegram
 gd mbstring xml json fileinfo gmp iconv ffi
 ```
 
+Optionally install `apcu` to enable login rate limiting (`LOGIN_REQUESTS_BY_IP` and `LOGIN_TOTAL_DAILY_LIMIT` in `config.php`).
+
 3. Install dependencies:
 
 ```bash
@@ -110,10 +112,9 @@ patch -p0 < patches/UpdateHandler.php.patch
 - `s-mytelegram/` for MyTelegram mode in Docker-style config.
 
 5. Deny public access to session folders and `MadelineProto.log`.
-6. Recommended PHP settings:
+6. Recommended PHP settings (a [browscap](https://browscap.org/) database gives better logged in device names):
 
 ```ini
-session.gc_maxlifetime = 8640000
 browscap = /path/to/browscap.ini
 ```
 

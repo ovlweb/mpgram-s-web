@@ -5,11 +5,6 @@ ARG LOTTIE_CONVERTER_VERSION=v1.2.0
 ARG GIFSKI_VERSION=1.34.0
 
 RUN apt-get update \
-    && apt-get install -y gnupg curl ca-certificates unzip xz-utils \
-    && curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /usr/share/keyrings/php.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/php.gpg] https://packages.sury.org/php/ bullseye main" > /etc/apt/sources.list.d/php.list \
-    && apt-get update \
-    && apt-get install -y php8.4-gd \
     && apt-get -y --no-install-recommends install \
     php8.4-mbstring \
     php8.4-gd \
@@ -20,6 +15,9 @@ RUN apt-get update \
   # php8.4-json \ PHP8.3-JSON is not shipped as a separate component anymore
     php8.4-fileinfo \
     curl \
+    ca-certificates \
+    unzip \
+    xz-utils \
 	patch \
     && apt-get clean; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 

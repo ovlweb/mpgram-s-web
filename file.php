@@ -196,7 +196,6 @@ try {
             header('Content-Type: image/jpeg');
             $img = imagecreatefromstring(file_get_contents($outpath));
             imagejpeg($img, null, 40);
-            imagedestroy($img);
             die;
         }
         $payload = new Amp\ByteStream\Payload($MP->downloadToReturnedStream($di));
@@ -216,17 +215,14 @@ try {
                 imagealphablending($temp, false);
                 imagesavealpha($temp, true);
                 imagecopyresampled($temp, $img, 0, 0, 0, 0, $w, $h, $w1, $h1);
-                imagedestroy($img);
                 $img = $temp;
             }
             header('Content-Type: image/png');
             imagepng($img);
-            imagedestroy($img);
             die;
         } elseif ($p == 'png') {
             header('Content-Type: image/png');
             imagepng($img);
-            imagedestroy($img);
             die;
         } else {
             if (str_starts_with($p, 'r')) {
@@ -266,9 +262,9 @@ try {
                     $h = ($h/$w)*$size;
                     $w = $size;
                     $img = resize($img, $w, $h);
-                } elseif ($h > 90) {
-                    $w = ($w/$h)*90;
-                    $h = 90;
+                } elseif ($h > $size) {
+                    $w = ($w/$h)*$size;
+                    $h = $size;
                     $img = resize($img, $w, $h);
                 }
             } elseif ($p == 'sprev') {
@@ -306,9 +302,9 @@ try {
                 }
             } elseif ($p == 'view') {
                 $q = 70;
-                $h = (int) $_GET['th'] ?? $size;
+                $h = max(1, (int) ($_GET['th'] ?? $size));
                 $w = ($ow / $oh) * $h;
-                $tw = (int) $_GET['tw'] ?? $size;
+                $tw = max(1, (int) ($_GET['tw'] ?? $size));
                 if ($w > $tw) {
                     $w = $tw;
                     $h = ($oh / $ow) * $w;
@@ -318,7 +314,6 @@ try {
         }
         header('Content-Type: image/jpeg');
         imagejpeg($img, null, $q);
-        imagedestroy($img);
     } else /*if (isset($_GET['audio'])) {
         echo '<a href="file.php?m='.$_GET['m'].'&c='.$_GET['c'].'">Download</a><br>';
         echo '<audio controls preload="none" src="file.php?m='.$_GET['m'].'&c='.$_GET['c'].'">';

@@ -12,7 +12,7 @@ function mpgram_env_bool(string $name, bool $default = false): bool
     return in_array(strtolower((string)$value), ['1', 'true', 'yes', 'on'], true);
 }
 
-// dir where sessions will save
+// dir where sessions will be stored
 define('sessionspath', mpgram_env_string('MPGRAM_SESSIONS_PATH', 's/'));
 // transparent stickers
 define('PNG_STICKERS', true);
@@ -21,7 +21,7 @@ define('FORCE_HTTPS', false);
 // redirect http to https for chrome user-agent
 define('CHROME_HTTPS', false);
 
-// ffmpeg
+// ffmpeg for voice messages
 define('CONVERT_VOICE_MESSAGES', false);
 define('VOICE_TMP_DIR', sys_get_temp_dir().'/mp/');
 define('FFMPEG_DIR', '');
@@ -33,7 +33,7 @@ define('INSTANCE_PASSWORD', null);
 // Use file/ instead of file.php, see rewrite rule in .htaccess
 define('FILE_REWRITE', false);
 
-// https://github.com/ed-asriyan/lottie-converter (Add "#!/usr/bin/env bash" as first line in its bash scripts!)
+// https://github.com/ed-asriyan/lottie-converter
 define('CONVERT_TGS_STICKERS', mpgram_env_bool('CONVERT_TGS_STICKERS', false));
 $mpgramLottieDir = rtrim(mpgram_env_string('LOTTIE_DIR', ''), '/');
 define('LOTTIE_DIR', $mpgramLottieDir === '' ? '' : $mpgramLottieDir.'/');
@@ -68,3 +68,7 @@ define('PRIVATE_SERVER_HOST', mpgram_env_string('PRIVATE_SERVER_HOST', $mpgramPr
 define('PRIVATE_SERVER_PORT', mpgram_env_string('PRIVATE_SERVER_PORT', '30444'));
 define('PRIVATE_SERVER_USE_WSS', mpgram_env_bool('PRIVATE_SERVER_USE_WSS', false));
 define('MPGRAM_CONNECTION_PROFILE', 'connection.mtg-server.php');
+
+// login requests limit
+define('LOGIN_REQUESTS_BY_IP', 5);
+define('LOGIN_TOTAL_DAILY_LIMIT', 50);

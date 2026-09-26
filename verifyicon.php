@@ -68,7 +68,6 @@ function vi_output_png($img, $cacheFile = null) {
         @file_put_contents($cacheFile, $data);
     }
     echo $data;
-    imagedestroy($img);
     die;
 }
 

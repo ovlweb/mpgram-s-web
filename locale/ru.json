@@ -119,6 +119,8 @@
 	"chat_bio": "О себе",
 	"chat_username": "Имя пользователя",
 	"qr_login": "Войти с помощью QR-кода",
+	"login_too_many_requests": "Слишком много попыток входа. Попробуйте позже.",
+	"login_too_many_requests_today": "Слишком много попыток входа сегодня. Попробуйте позже.",
 	"search": "Поиск",
 	"global_search": "Глобальный поиск",
 	"search_messages": "Поиск по чату",

@@ -6,13 +6,15 @@ ini_set('error_reporting', E_ERROR);
 ini_set('display_errors', 0);
 ini_set('display_startup_errors', 0);
 
+use danog\MadelineProto\Magic;
+
 include 'mp.php';
-MP::startSession();
 $user = MP::getUser();
 if (!$user) {
     header('Location: login.php?logout=1');
     die;
 }
+MP::startSession();
 
 $theme = MP::getSettingInt('theme');
 $lng = MP::initLocale();
@@ -49,8 +51,8 @@ try {
         $MP = MP::getMadelineAPI($user);
         switch ($act) {
         case 'delete':
-            if (is_numeric($id) && (int)$id > 0) {
-                $MP->messages->deleteMessages(id: [(int)$msg]);
+            if (is_numeric($id) && ((int) $id > 0 || (int) $id > Magic::ZERO_CHANNEL_ID)) {
+                $MP->messages->deleteMessages(revoke: true, id: [(int)$msg]);
             } else {
                 $MP->channels->deleteMessages(channel: $id, id: [(int)$msg]);
             }
@@ -132,10 +134,11 @@ try {
                             case 'aac':
                             case 'ogg':
                             case 'm4a':
+                            case 'wav':
                                 $newfile = $file.'.ogg';
-                                $res = shell_exec(FFMPEG_DIR.'ffmpeg -i "'.$file.'" -ac 1 -y -map 0:a -map_metadata -1 "'.$newfile.'"'.(WINDOWS?'':' 2>&1')) ?? '';
+                                $res = shell_exec('"'.FFMPEG_DIR.'ffmpeg" -i '.escapeshellarg($file).' -c:a libopus -ac 1 -ar 48000 -filter:a speechnorm=e=10:p=0.9 -y -map 0:a -map_metadata -1 '.escapeshellarg($newfile).(WINDOWS?'':' 2>&1')) ?? '';
                                 unlink($file);
-                                if (str_contains($res, 'failed')) {
+                                if (str_contains($res, 'failed') || !file_exists($newfile)) {
                                     $result = 'Conversion failed';
                                     break;
                                 }
@@ -153,8 +156,12 @@ try {
                                     }
                                 }
                                 try {
-                                    $res = shell_exec(FFMPEG_DIR.'ffprobe -v error -f lavfi -i "amovie='.$newfile.',asetnsamples=44100,astats=metadata=1:reset=1" -show_entries frame_tags=lavfi.astats.Overall.Peak_level -of json'.(WINDOWS?'':' 2>&1')) ?? false;
-                                    
+                                    $nsamples = 48000;
+                                    if ($dur != 0) {
+                                        $nsamples = max(512, (int)(($dur * 48000) / 100));
+                                    }
+                                    $res = shell_exec('"'.FFMPEG_DIR.'ffprobe" -v error -f lavfi -i '.escapeshellarg('amovie='.$newfile.',asetnsamples='.$nsamples.',astats=metadata=1:reset=1').' -show_entries frame_tags=lavfi.astats.Overall.Peak_level -of json'.(WINDOWS?'':' 2>&1')) ?? false;
+
                                     if ($res) {
                                         $j = json_decode($res);
                                         if ($j) {
